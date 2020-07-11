@@ -3,16 +3,35 @@
   (:require [clojure.spec.alpha :as s :refer [coll-of]]))
 
 
+(def persistence-types
+  #{::string
+    ::long
+    ::boolean
+    ::instant
+    ::big-int
+    ::float
+    ::double
+    ::big-dec
+    ::uuid
+    ::uri
+    ::bytes
+    ::ref})
+
+(def cardinality-values
+  #{::single
+    ::multiple})
+
 (s/def ::i18n-ref keyword?)
 (s/def ::id  keyword?)
 (s/def ::label (s/or :literal string? :keyword ::i18n-ref))
 (s/def ::spec keyword?)
-(s/def ::ref ::id)
 (s/def ::description string?)
+(s/def ::persistence-type #(contains? persistence-types %))
+(s/def ::cardinality #(contains? cardinality-values %))
 
 
 (s/def ::attribute
-  (s/keys :req-un [::id ::label ::type]
+  (s/keys :req-un [::id ::label ::spec ::persistence-type]
           :opt-un [::description ::cardinality]))
 
 (s/def ::attributes
@@ -29,8 +48,3 @@
   (s/keys :req-un [::id
                    ::entities]
           :opt-un [::description]))
-
-(defn infer-type [spec]
-  (-> spec
-      s/form
-      type))
