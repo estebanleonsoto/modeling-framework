@@ -25,7 +25,8 @@
      :db/doc         "Some nice label"}]])
 
 (def type-mappings
-  [[::m/string :db.type/string]
+  [[::m/keyword :db.type/keyword]
+   [::m/string :db.type/string]
    [::m/long :db.type/long]
    [::m/boolean :db.type/boolean]
    [::m/big-int :db.type/bigint]

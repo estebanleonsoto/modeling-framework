@@ -4,7 +4,8 @@
 
 
 (def persistence-types
-  #{::string
+  #{::keyword
+    ::string
     ::long
     ::boolean
     ::instant

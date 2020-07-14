@@ -1,8 +1,10 @@
 (ns modeling-framework.datomic
-  (:require [modeling-framework.spec :as m]))
+  (:require [modeling-framework.spec :as m]
+            [clojure.spec.alpha :refer [valid? explain]]))
 
 (def datomic-types
-  {::m/string  :db.type/string
+  {::m/keyword :db.type/keyword
+   ::m/string  :db.type/string
    ::m/long    :db.type/long
    ::m/boolean :db.type/boolean
    ::m/instant :db.type/instant
@@ -35,6 +37,8 @@
 
 
 (defn schema [model]
+  (when (not (valid? ::m/model model))
+    (throw (IllegalArgumentException. (str "Error in model: " (explain ::m/model model)))))
   {(model :id)
    (->> model
         (:entities)

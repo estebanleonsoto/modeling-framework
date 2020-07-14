@@ -1,4 +1,4 @@
-(defproject modeling-framework "0.0.0"
+(defproject estebanleonsoto/modeling-framework "0.0.001-SNAPSHOT"
   :description "A library to design data models and automatically generate code for them"
   :url "https://github.com//"
   :license {:name "Eclipse Public License"
