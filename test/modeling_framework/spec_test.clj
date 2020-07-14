@@ -26,7 +26,13 @@
     "A required field must be boolean"
     (is (s/valid? ::m/required false))
     (is (s/valid? ::m/required true))
-    (is (not (s/valid? ::m/required nil)))))
+    (is (not (s/valid? ::m/required nil))))
+  (testing
+    "A identifies field must be boolean"
+    (is (s/valid? ::m/identifies false))
+    (is (s/valid? ::m/identifies true))
+    (is (not (s/valid? ::m/identifies nil)))))
+
 
 (deftest test-attributes
   (testing

@@ -1,2 +1,2 @@
-{:test-entity-1 [#:db{:ident :att1, :valueType :db.type/string, :cardinality :db.cardinality/one, :doc "This is attribute 1 of test-entity-1"} #:db{:ident :att2, :valueType :db.type/float, :cardinality :db.cardinality/many, :doc "This is attribute 2 of test-entity-1"}]}
-{:test-entity-1 [#:db{:ident :att1, :valueType :db.type/string, :cardinality :db.cardinality/one, :doc "This is attribute 1 of test-entity-1"} #:db{:ident :att2, :valueType :db.type/float, :cardinality :db.cardinality/many, :doc "This is attribute 1 of test-entity-2"}]}
+#:db{:ident :test-attribute-id2, :valueType :db.type/bytes, :cardinality :db.cardinality/one, :doc "Some nice label"}
+#:db{:ident :test-attribute-id1, :valueType :db.type/bytes, :cardinality :db.cardinality/one, :doc "Some nice label"}
