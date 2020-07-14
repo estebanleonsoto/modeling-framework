@@ -1,25 +1,22 @@
-# modeling-framework
-[![Build Status](https://travis-ci.org//.svg?branch=master)](https://travis-ci.org//)
-[![codecov](https://codecov.io/gh///branch/master/graph/badge.svg)](https://codecov.io/gh//)
-[![Clojars Project](https://img.shields.io/clojars/v/modeling-framework.svg)](https://clojars.org/modeling-framework)
+# modeling-framework-internal
 
-A Clojure library designed to provide a way to describe your domain models.
-
-Along that, this library is planned to provide features that allow exporting the model to different scenarios, producing implementation 
-of it in areas like database schemas, APIs, front-end forms, etc.
-
-```clj
-[modeling-framework "0.0.0"]
-```
+A Clojure library designed to ... well, that part is up to you.
 
 ## Usage
 
-Define a model using :edn such that it conforms to the the spec in this library.
-This model can be used as input in the various functions that export it to other scenarios.
+FIXME
 
 ## License
 
-Copyright © 2020
+Copyright © 2020 FIXME
 
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
+This program and the accompanying materials are made available under the
+terms of the Eclipse Public License 2.0 which is available at
+http://www.eclipse.org/legal/epl-2.0.
+
+This Source Code may also be made available under the following Secondary
+Licenses when the conditions for such availability set forth in the Eclipse
+Public License, v. 2.0 are satisfied: GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or (at your
+option) any later version, with the GNU Classpath Exception which is available
+at https://www.gnu.org/software/classpath/license.html.

@@ -88,3 +88,23 @@
                                              :label "Test Attribute"
                                              :spec  :something
                                              :persistence-type ::m/instant}]}]}))))
+
+(deftest entity-model-test
+  (let [model {:id       :model-name
+               :entities [{:id         :test-entity
+                           :attributes [{:id               :test-attribute
+                                         :label            "Test Attribute"
+                                         :spec             :something
+                                         :persistence-type ::m/instant}]}]}
+        expected {:id :test-entity
+                  :attributes [{:id               :test-attribute
+                                :label            "Test Attribute"
+                                :spec             :something
+                                :persistence-type ::m/instant}]}]
+    (testing
+      "Fetch the model of a specific entity"
+      (is (= expected (m/entity-model model :test-entity))))
+    (testing
+      "Fetch specific entity model with wrong entity key returns nil"
+      (is (nil? (m/entity-model model :wrong-entity-key)))
+      (is (nil? (m/entity-model model nil))))))
