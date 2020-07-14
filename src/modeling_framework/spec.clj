@@ -30,11 +30,13 @@
 (s/def ::persistence-type #(contains? persistence-types %))
 (s/def ::cardinality #(contains? cardinality-values %))
 (s/def ::required boolean?)
+(s/def ::identifies boolean?)
+
 
 
 (s/def ::attribute
   (s/keys :req-un [::id ::label ::spec ::persistence-type]
-          :opt-un [::description ::cardinality ::required]))
+          :opt-un [::description ::cardinality ::required ::identifies]))
 
 (s/def ::attributes
   (coll-of ::attribute :min-count 1))

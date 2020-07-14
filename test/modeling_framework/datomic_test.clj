@@ -14,15 +14,17 @@
      :db/cardinality :db.cardinality/one
      :db/doc         "Some nice label"}]
 
-   [{:id               :test-attribute-id
+   [{:id               :test-attribute-id3
      :schema           :some-schema
      :persistence-type ::m/string
      :cardinality      ::m/multiple
-     :label            "Some nice label"}
-    {:db/ident       :test-attribute-id
+     :label            "Some nice label"
+     :identifies       true}
+    {:db/ident       :test-attribute-id3
      :db/valueType   :db.type/string
      :db/cardinality :db.cardinality/many
-     :db/doc         "Some nice label"}]])
+     :db/doc         "Some nice label"
+     :db/unique      :db.unique/identity}]])
 
 (def type-mappings
   [[::m/keyword :db.type/keyword]
@@ -116,20 +118,20 @@
 (deftest test-conformity-schema
   (testing
     "Entities are converted to conformity transactions in a map"
-    (let [expected {:test-entity-1 {:txes [#:db{:ident :att1,
-                                                :valueType :db.type/string,
+    (let [expected {:test-entity-1 {:txes [#:db{:ident       :att1,
+                                                :valueType   :db.type/string,
                                                 :cardinality :db.cardinality/one,
-                                                :doc "This is attribute 1 of test-entity-1"}
-                                           #:db{:ident :att2,
-                                                :valueType :db.type/float,
+                                                :doc         "This is attribute 1 of test-entity-1"}
+                                           #:db{:ident       :att2,
+                                                :valueType   :db.type/float,
                                                 :cardinality :db.cardinality/many,
-                                                :doc "This is attribute 2 of test-entity-1"}]},
-                    :test-entity-2 {:txes [#:db{:ident :att1,
-                                                :valueType :db.type/string,
+                                                :doc         "This is attribute 2 of test-entity-1"}]},
+                    :test-entity-2 {:txes [#:db{:ident       :att1,
+                                                :valueType   :db.type/string,
                                                 :cardinality :db.cardinality/one,
-                                                :doc "This is attribute 1 of test-entity-1"}
-                                           #:db{:ident :att2,
-                                                :valueType :db.type/float,
+                                                :doc         "This is attribute 1 of test-entity-1"}
+                                           #:db{:ident       :att2,
+                                                :valueType   :db.type/float,
                                                 :cardinality :db.cardinality/many,
-                                                :doc "This is attribute 2 of test-entity-1"}]}}]
+                                                :doc         "This is attribute 2 of test-entity-1"}]}}]
       (is (= expected (conformity-transaction-data test-model-2))))))
