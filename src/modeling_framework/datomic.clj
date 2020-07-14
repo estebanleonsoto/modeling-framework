@@ -1,8 +1,10 @@
 (ns modeling-framework.datomic
-  (:require [modeling-framework.spec :as m]))
+  (:require [modeling-framework.spec :as m]
+            [clojure.spec.alpha :refer [valid? explain]]))
 
 (def datomic-types
-  {::m/string  :db.type/string
+  {::m/keyword :db.type/keyword
+   ::m/string  :db.type/string
    ::m/long    :db.type/long
    ::m/boolean :db.type/boolean
    ::m/instant :db.type/instant
@@ -33,11 +35,28 @@
         (doall)
         (vec))})
 
+(defn validate-model [model]
+  "Performs a clojure spec validation of the model"
+  (when (not (valid? ::m/model model))
+   (throw (IllegalArgumentException. (str "Error in model: " (explain ::m/model model))))))
 
 (defn schema [model]
-  {(model :id)
+  "converts the model to a collection of datomic schemas"
+   (validate-model model)
    (->> model
         (:entities)
         (map entity-schema)
         (doall)
-        (vec))})
+        (vec)))
+
+(defn conformity-transaction-data [model]
+  "Converts the model to a collection of schema transactions conforming to
+   avescodes/conformity. This is mainly intended to be used in luminus projects"
+  (validate-model model)
+  (->> model
+       (:entities)
+       (map (fn [entity] [(:id entity)
+                          {:txes
+                           (get (entity-schema entity) (:id entity))}]))
+       (vec)
+       (into {})))

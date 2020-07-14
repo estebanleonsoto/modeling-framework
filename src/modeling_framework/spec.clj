@@ -4,7 +4,8 @@
 
 
 (def persistence-types
-  #{::string
+  #{::keyword
+    ::string
     ::long
     ::boolean
     ::instant
@@ -48,3 +49,9 @@
   (s/keys :req-un [::id
                    ::entities]
           :opt-un [::description]))
+
+(defn entity-model [model entity-key]
+  (->> model
+       (:entities)
+       (filter #(= entity-key (:id %)))
+       (first)))
