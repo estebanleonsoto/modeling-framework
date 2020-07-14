@@ -21,7 +21,12 @@
     (is (s/valid? ::m/spec ::test-spec)))
   (testing
     "A description is just a string"
-    (is (s/valid? ::m/description "a test description"))))
+    (is (s/valid? ::m/description "a test description")))
+  (testing
+    "A required field must be boolean"
+    (is (s/valid? ::m/required false))
+    (is (s/valid? ::m/required true))
+    (is (not (s/valid? ::m/required nil)))))
 
 (deftest test-attributes
   (testing
