@@ -21,14 +21,28 @@
   {::m/single   :db.cardinality/one
    ::m/multiple :db.cardinality/many})
 
-(defn attribute-schema [{:keys [id cardinality persistence-type description label identifies]}]
-  (let [base-attribute-schema{:db/ident       id
-                              :db/valueType   (datomic-types persistence-type)
-                              :db/cardinality (or (datomic-cardinality cardinality) :db.cardinality/one)
-                              :db/doc         (or description label)}]
-    (if identifies
-      (assoc base-attribute-schema :db/unique :db.unique/identity)
-      base-attribute-schema)))
+(defn add-unique-identity [schema identifies]
+  "if identifies is true, adds a :db/unique property to the attribute schema"
+  (if identifies
+    (assoc schema :db/unique :db.unique/identity)
+    schema))
+
+(defn add-component [schema persistence-type sub-entity]
+  "if it is a sub-entity and persistence-type is ::m/ref it adds a :db/isComponent to the attribute,
+  meaning the entity this attribute refers to is managed as part of the containing property keeping
+  referential integrity"
+  (if (and sub-entity (= ::m/ref persistence-type))
+    (assoc schema :db/isComponent true)
+    schema))
+
+(defn attribute-schema [{:keys [id cardinality persistence-type description label identifies sub-entity]}]
+  (-> {:db/ident       id
+       :db/valueType   (datomic-types persistence-type)
+       :db/cardinality (or (datomic-cardinality cardinality) :db.cardinality/one)
+       :db/doc         (or description label)}
+      (add-unique-identity identifies)
+      (add-component persistence-type sub-entity)))
+
 
 (defn entity-schema [entity-model]
   {(entity-model :id)

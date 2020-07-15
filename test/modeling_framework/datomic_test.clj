@@ -24,7 +24,32 @@
      :db/valueType   :db.type/string
      :db/cardinality :db.cardinality/many
      :db/doc         "Some nice label"
-     :db/unique      :db.unique/identity}]])
+     :db/unique      :db.unique/identity}]
+
+   [{:id               :test-attribute-id4
+     :schema           :some-schema
+     :persistence-type ::m/string
+     :cardinality      ::m/multiple
+     :label            "Some nice label"
+     :identifies       true
+     :sub-entity       true}
+    {:db/ident       :test-attribute-id4
+     :db/valueType   :db.type/string
+     :db/cardinality :db.cardinality/many
+     :db/doc         "Some nice label"
+     :db/unique      :db.unique/identity}]
+
+   [{:id               :test-attribute-id5
+     :schema           :some-schema
+     :persistence-type ::m/ref
+     :cardinality      ::m/multiple
+     :label            "Some nice label"
+     :sub-entity       true}
+    {:db/ident       :test-attribute-id5
+     :db/valueType   :db.type/ref
+     :db/cardinality :db.cardinality/many
+     :db/doc         "Some nice label"
+     :db/isComponent true}]])
 
 (def type-mappings
   [[::m/keyword :db.type/keyword]

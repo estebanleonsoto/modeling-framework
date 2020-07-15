@@ -1,2 +1,2 @@
-#:db{:ident :test-attribute-id2, :valueType :db.type/bytes, :cardinality :db.cardinality/one, :doc "Some nice label"}
-#:db{:ident :test-attribute-id1, :valueType :db.type/bytes, :cardinality :db.cardinality/one, :doc "Some nice label"}
+#:db{:ident :test-attribute-id5, :valueType :db.type/string, :cardinality :db.cardinality/many, :doc "Some nice label", :isComponent true}
+#:db{:ident :test-attribute-id5, :valueType :db.type/ref, :cardinality :db.cardinality/many, :doc "Some nice label", :isComponent true}

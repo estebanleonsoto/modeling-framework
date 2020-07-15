@@ -31,12 +31,13 @@
 (s/def ::cardinality #(contains? cardinality-values %))
 (s/def ::required boolean?)
 (s/def ::identifies boolean?)
+(s/def ::sub-entity boolean?)
 
 
 
 (s/def ::attribute
   (s/keys :req-un [::id ::label ::spec ::persistence-type]
-          :opt-un [::description ::cardinality ::required ::identifies]))
+          :opt-un [::description ::cardinality ::required ::identifies ::sub-entity]))
 
 (s/def ::attributes
   (coll-of ::attribute :min-count 1))

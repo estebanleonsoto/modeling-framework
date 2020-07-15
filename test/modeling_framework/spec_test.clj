@@ -31,7 +31,12 @@
     "A identifies field must be boolean"
     (is (s/valid? ::m/identifies false))
     (is (s/valid? ::m/identifies true))
-    (is (not (s/valid? ::m/identifies nil)))))
+    (is (not (s/valid? ::m/identifies nil))))
+  (testing
+    "A sub-entity field must be boolean"
+    (is (s/valid? ::m/sub-entity false))
+    (is (s/valid? ::m/sub-entity true))
+    (is (not (s/valid? ::m/sub-entity nil)))))
 
 
 (deftest test-attributes
@@ -41,13 +46,16 @@
                   {:id               :some-name
                    :label            "Some name"
                    :spec             :attribute-spec
-                   :persistence-type ::m/string}))
-    (is (s/valid? ::m/attribute
-                  {:id                  :some-name
-                   :label               "Some name"
-                   :spec                :attribute-spec
                    :persistence-type ::m/string
-                   :description         "Some description"}))
+                   :required         true
+                   :identifies       true
+                   :sub-entity       true}))
+    (is (s/valid? ::m/attribute
+                  {:id               :some-name
+                   :label            "Some name"
+                   :spec             :attribute-spec
+                   :persistence-type ::m/string
+                   :description      "Some description"}))
     (is (not (s/valid? ::m/attribute
                        {:id    :some-name
                         :label "Some name"})))
@@ -64,20 +72,20 @@
   (testing
     "An attribute can have unexpected keys"
     (is (s/valid? ::m/attribute
-                  {:id            :some-name
-                   :label         "Some name"
-                   :spec          :attribute-spec
+                  {:id               :some-name
+                   :label            "Some name"
+                   :spec             :attribute-spec
                    :persistence-type ::m/long
-                   :arbitrary-key ""}))))
+                   :arbitrary-key    ""}))))
 
 (deftest test-entity
   (testing
     "An entity must have a name and at least one attribute"
     (is (s/valid? ::m/entity
                   {:id         :test-entity
-                   :attributes [{:id                 :test-attribute
-                                 :label              "Test Attribute"
-                                 :spec               :something
+                   :attributes [{:id               :test-attribute
+                                 :label            "Test Attribute"
+                                 :spec             :something
                                  :persistence-type ::m/string}]}))
     (is (not (s/valid? ::m/entity
                        {
@@ -95,9 +103,9 @@
     (is (s/valid? ::m/model
                   {:id       :model-name
                    :entities [{:id         :test-entity
-                               :attributes [{:id    :test-attribute
-                                             :label "Test Attribute"
-                                             :spec  :something
+                               :attributes [{:id               :test-attribute
+                                             :label            "Test Attribute"
+                                             :spec             :something
                                              :persistence-type ::m/instant}]}]}))))
 
 (deftest entity-model-test
@@ -107,7 +115,7 @@
                                          :label            "Test Attribute"
                                          :spec             :something
                                          :persistence-type ::m/instant}]}]}
-        expected {:id :test-entity
+        expected {:id         :test-entity
                   :attributes [{:id               :test-attribute
                                 :label            "Test Attribute"
                                 :spec             :something
