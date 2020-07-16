@@ -1,7 +1,8 @@
 (ns modeling-framework.spec-test
   (:require [clojure.test :refer :all]
             [modeling-framework.spec :as m]
-            [clojure.spec.alpha :as s]))
+            [clojure.spec.alpha :as s])
+  (:import (java.time Instant)))
 
 (deftest test-attribute-properties
   (testing
@@ -38,6 +39,42 @@
     (is (s/valid? ::m/sub-entity true))
     (is (not (s/valid? ::m/sub-entity nil)))))
 
+(def correct-default-value-test-cases
+  [[::m/keyword :test-keyword]
+   [::m/string  "test-string"]
+   [::m/long    100]
+   [::m/boolean true]
+   [::m/instant (. Instant now)]
+   [::m/big-int (BigInteger/ONE)]
+   [::m/big-dec (BigDecimal/TEN)]
+   [::m/float   (new Float 1.123)]
+   [::m/double  (new Double 4.13221)]
+   [::m/uuid    (java.util.UUID/randomUUID)]
+   [::m/uri     (new java.net.URI "http://clojuredocs.org/")]
+   [::m/bytes   (byte-array 2137489)]
+   [::m/ref     :test-keyword]])
+
+(def incorrect-default-value-test-cases
+  [[::m/keyword "test-string"]
+   [::m/string  :test-keyword]
+   [::m/long    "test-string"]
+   [::m/boolean 100]
+   [::m/instant true]
+   [::m/big-int (. Instant now)]
+   [::m/big-dec (BigInteger/ONE)]
+   [::m/float   (BigDecimal/TEN)]
+   [::m/double  (new Float 1.123)]
+   [::m/uuid    (new Double 4.13221)]
+   [::m/uri     (java.util.UUID/randomUUID)]
+   [::m/bytes   (new java.net.URI "http://clojuredocs.org/")]
+   [::m/ref     (byte-array 2137489)]])
+
+(def basic-attribute
+  {:id               :some-name
+   :label            "Some name"
+   :spec             :attribute-spec
+   :persistence-type ::m/string
+   :description      "Some description"})
 
 (deftest test-attributes
   (testing
@@ -76,7 +113,25 @@
                    :label            "Some name"
                    :spec             :attribute-spec
                    :persistence-type ::m/long
-                   :arbitrary-key    ""}))))
+                   :arbitrary-key    ""})))
+  (testing
+    "If :default-value property is present, it has to match :persistence-type"
+    (is (->> correct-default-value-test-cases
+             (map (fn [[type value]]
+                    (assoc basic-attribute :persistence-type type
+                                           :default-value value)))
+             (map #(s/valid? ::m/attribute %))
+             (every? true?))))
+  (testing
+    "If :default-value property is present, non matching values to :persistence-type make attribute invalid"
+    (is (->> incorrect-default-value-test-cases
+             (map (fn [[type value]]
+                    (assoc basic-attribute :persistence-type type
+                                           :default-value value)))
+             (map #(s/valid? ::m/attribute %))
+             (every? false?)))))
+
+
 
 (deftest test-entity
   (testing
