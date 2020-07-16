@@ -41,33 +41,33 @@
 
 (def correct-default-value-test-cases
   [[::m/keyword :test-keyword]
-   [::m/string  "test-string"]
-   [::m/long    100]
+   [::m/string "test-string"]
+   [::m/long 100]
    [::m/boolean true]
    [::m/instant (. Instant now)]
    [::m/big-int (BigInteger/ONE)]
    [::m/big-dec (BigDecimal/TEN)]
-   [::m/float   (new Float 1.123)]
-   [::m/double  (new Double 4.13221)]
-   [::m/uuid    (java.util.UUID/randomUUID)]
-   [::m/uri     (new java.net.URI "http://clojuredocs.org/")]
-   [::m/bytes   (byte-array 2137489)]
-   [::m/ref     :test-keyword]])
+   [::m/float (new Float 1.123)]
+   [::m/double (new Double 4.13221)]
+   [::m/uuid (java.util.UUID/randomUUID)]
+   [::m/uri (new java.net.URI "http://clojuredocs.org/")]
+   [::m/bytes (byte-array 2137489)]
+   [::m/ref :test-keyword]])
 
 (def incorrect-default-value-test-cases
   [[::m/keyword "test-string"]
-   [::m/string  :test-keyword]
-   [::m/long    "test-string"]
+   [::m/string :test-keyword]
+   [::m/long "test-string"]
    [::m/boolean 100]
    [::m/instant true]
    [::m/big-int (. Instant now)]
    [::m/big-dec (BigInteger/ONE)]
-   [::m/float   (BigDecimal/TEN)]
-   [::m/double  (new Float 1.123)]
-   [::m/uuid    (new Double 4.13221)]
-   [::m/uri     (java.util.UUID/randomUUID)]
-   [::m/bytes   (new java.net.URI "http://clojuredocs.org/")]
-   [::m/ref     (byte-array 2137489)]])
+   [::m/float (BigDecimal/TEN)]
+   [::m/double (new Float 1.123)]
+   [::m/uuid (new Double 4.13221)]
+   [::m/uri (java.util.UUID/randomUUID)]
+   [::m/bytes (new java.net.URI "http://clojuredocs.org/")]
+   [::m/ref (byte-array 2137489)]])
 
 (def basic-attribute
   {:id               :some-name
@@ -161,7 +161,12 @@
                                :attributes [{:id               :test-attribute
                                              :label            "Test Attribute"
                                              :spec             :something
-                                             :persistence-type ::m/instant}]}]}))))
+                                             :persistence-type ::m/instant}
+                                            {:id               :test-attribute-mandatory
+                                             :label            "Mandatory Attribute"
+                                             :spec             :something
+                                             :persistence-type ::m/string
+                                             :required         true}]}]}))))
 
 (deftest entity-model-test
   (let [model {:id       :model-name
@@ -182,3 +187,42 @@
       "Fetch specific entity model with wrong entity key returns nil"
       (is (nil? (m/entity-model model :wrong-entity-key)))
       (is (nil? (m/entity-model model nil))))))
+
+(deftest entity-spec-test
+  (let [model {:id       :model-name,
+               :entities [{:id         ::test-entity,
+                           :attributes [{:id               :test-attribute,
+                                         :label            "Test Attribute",
+                                         :spec             (s/def :modeling-framework.spec-test/something1 #(instance? Instant %))
+                                         :persistence-type :modeling-framework.spec/instant}
+                                        {:id               :test-attribute-mandatory,
+                                         :label            "Mandatory Attribute",
+                                         :spec             (s/def :modeling-framework.spec-test/something2 (and string? #(= (count %) 2)))
+                                         :persistence-type :modeling-framework.spec/string,
+                                         :required         true}
+                                        {:id               :test-attribute-mandatory-2,
+                                         :label            "Mandatory Attribute 2",
+                                         :spec             (s/def :modeling-framework.spec-test/something3 string?)
+                                         :persistence-type :modeling-framework.spec/string
+                                         :required         true}]}]}
+        spec (m/entity-spec model ::test-entity)]
+    (testing
+      "A valid model must pass the spec"
+      (is (s/valid? spec {:test-attribute             (Instant/now)
+                          :test-attribute-mandatory   "Hi"
+                          :test-attribute-mandatory-2 "Yes"})))
+    (testing
+      "An entity cannot pass the spec if it is missing a required field"
+      (is (not (s/valid? spec {:test-attribute           (Instant/now)
+                               :test-attribute-mandatory "Hi"}))))
+    (testing
+      "An entity cannot pass the spec if it has an attribute with the wrong type"
+      (is (not (s/valid? spec {:test-attribute             (Instant/now)
+                               :test-attribute-mandatory   "Hi",
+                               :test-attribute-mandatory-2 2}))))
+    (testing
+      "An entity cannot pass the spec if an attribute has a value that does not pass the attribute's spec"
+      (is (not (s/valid? spec {:test-attribute             (Instant/now)
+                               :test-attribute-mandatory   "This value is too long and does not pass the spec"
+                               :test-attribute-mandatory-2 "Yes"}))))))
+

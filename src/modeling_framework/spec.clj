@@ -76,3 +76,67 @@
        (:entities)
        (filter #(= entity-key (:id %)))
        (first)))
+
+(defn has-all-mandatory-fields?-provider [entity-model]
+  (fn [entity]
+    (let [mandatory-fields (->> entity-model
+                                (:attributes)
+                                (filter :required)
+                                (map :id))]
+      (->> mandatory-fields
+           (map #(contains? entity %))
+           (every? true?)))))
+
+(defn all-fields-valid?-provider [entity-model]
+  (let [field-to-spec (->> entity-model
+                           (:attributes)
+                           (map #(vector (:id %) (:spec %)))
+                           (into {}))]
+    (fn [entity]
+      (->> entity
+           (map #(s/valid? (field-to-spec (first %)) (last %)))
+           (every? true?)))))
+
+(defn all-fields-correct-types?-provider [entity-model]
+  (let [field-to-type (->> entity-model
+                           (:attributes)
+                           (map #(vector (:id %) (persistence-types (:persistence-type %))))
+                           (into {}))]
+    (fn [entity]
+      (->> entity
+           (map #(= (field-to-type (first %)) (type (last %))))
+           (every? true?)))))
+
+
+(defn entity-spec [model entity-key]
+  (when (not (qualified-keyword? entity-key))
+    (throw (new IllegalArgumentException "Entity-key must be a qualified keyword")))
+  (let [entity-model (entity-model model entity-key)
+        mandatory-fields-spec-name (keyword
+                                     (str entity-key
+                                          "-mandatory-fields"))
+
+        has-mandatory-fields-spec (s/def
+                                    mandatory-fields-spec-name
+                                    (has-all-mandatory-fields?-provider entity-model))
+
+        valid-types-spec-name (keyword
+                                (str entity-key
+                                     "-types-valid"))
+
+        valid-types-spec (s/def
+                           valid-types-spec-name
+                           (all-fields-correct-types?-provider entity-model))
+
+        valid-fields-spec-name (keyword
+                                 (str entity-key
+                                      "-fields-valid"))
+
+        valid-fields-spec (s/def
+                            valid-fields-spec-name
+                            (all-fields-valid?-provider entity-model))]
+
+    (s/and
+      has-mandatory-fields-spec
+      valid-types-spec
+      valid-fields-spec)))
