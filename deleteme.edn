@@ -1,2 +1,0 @@
-#:db{:ident :test-attribute-id5, :valueType :db.type/string, :cardinality :db.cardinality/many, :doc "Some nice label", :isComponent true}
-#:db{:ident :test-attribute-id5, :valueType :db.type/ref, :cardinality :db.cardinality/many, :doc "Some nice label", :isComponent true}
