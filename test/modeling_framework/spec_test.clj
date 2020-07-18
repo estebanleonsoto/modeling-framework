@@ -34,9 +34,8 @@
     (is (s/valid? ::m/identifies true))
     (is (not (s/valid? ::m/identifies nil))))
   (testing
-    "A sub-entity field must be boolean"
-    (is (s/valid? ::m/sub-entity false))
-    (is (s/valid? ::m/sub-entity true))
+    "A sub-entity field must be keyword"
+    (is (s/valid? ::m/sub-entity :my-keyword))
     (is (not (s/valid? ::m/sub-entity nil)))))
 
 (def correct-default-value-test-cases
@@ -86,7 +85,7 @@
                    :persistence-type ::m/string
                    :required         true
                    :identifies       true
-                   :sub-entity       true}))
+                   :sub-entity       :something}))
     (is (s/valid? ::m/attribute
                   {:id               :some-name
                    :label            "Some name"
@@ -225,4 +224,46 @@
       (is (not (s/valid? spec {:test-attribute             (Instant/now)
                                :test-attribute-mandatory   "This value is too long and does not pass the spec"
                                :test-attribute-mandatory-2 "Yes"}))))))
+
+(deftest sub-entity-test
+  (testing
+    "A sub-entity must point to an existing entity id"
+    (let [_ (s/def ::reference keyword?)
+          _ (s/def ::simple-string string?)
+          valid-model {:id :valid-test-model
+                       :entities
+                           [{:id :referent-entity
+                             :attributes
+                                 [{:id               :reference-attribute
+                                   :label            "Reference"
+                                   :persistence-type ::m/ref
+                                   :spec             ::reference
+                                   :sub-entity       :referred-entity}]}
+                            {:id :referred-entity
+                             :attributes
+                                 [{:id               :my-other-attribute
+                                   :label            "other attribute"
+                                   :persistence-type ::m/string
+                                   :spec             ::simple-string}]}]}
+          invalid-model {:id :invalid-test-model
+                         :entities
+                         [{:id :referent-entity
+                           :attributes
+                               [{:id               :reference-attribute
+                                 :label            "Reference"
+                                 :persistence-type ::m/ref
+                                 :spec             ::reference
+                                 :sub-entity       :wrong-reference}]}
+                          {:id :referred-entity
+                           :attributes
+                               [{:id               :my-other-attribute
+                                 :label            "other attribute"
+                                 :persistence-type ::m/string
+                                 :spec             ::simple-string}]}]}]
+
+      (is (s/valid? ::m/model valid-model))
+      (is (not (s/valid? ::m/model invalid-model))))))
+
+
+
 

@@ -37,7 +37,7 @@
 (s/def ::cardinality #(contains? cardinality-values %))
 (s/def ::required boolean?)
 (s/def ::identifies boolean?)
-(s/def ::sub-entity boolean?)
+(s/def ::sub-entity keyword?)
 (s/def ::default-value #(not (nil? %)))
 
 
@@ -66,10 +66,27 @@
 (s/def ::entities
   (coll-of ::entity :min-count 1))
 
+
+(s/def ::valid-sub-entity-ref
+  (fn [model]
+    (let [sub-entity-refs (->> model
+                               (:entities)
+                               (map :attributes)
+                               (flatten)
+                               (map :sub-entity)
+                               (filter #(not (nil? %))))
+          entity-ids (->> model
+                          (:entities)
+                          (map :id)
+                          (set))]
+      (every? #(contains? entity-ids %) sub-entity-refs))))
+
 (s/def ::model
-  (s/keys :req-un [::id
-                   ::entities]
-          :opt-un [::description]))
+  (s/and
+    (s/keys :req-un [::id
+                     ::entities]
+            :opt-un [::description])
+    ::valid-sub-entity-ref))
 
 (defn entity-model [model entity-key]
   (->> model
