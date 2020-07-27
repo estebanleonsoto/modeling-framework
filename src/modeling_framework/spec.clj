@@ -1,6 +1,7 @@
 (ns modeling-framework.spec
   "Spec of the data structures used for describing models"
-  (:require [clojure.spec.alpha :as s :refer [coll-of]])
+  (:require [clojure.spec.alpha :as s :refer [coll-of]]
+            [clojure.pprint :refer [pprint]])
   (:import (clojure.lang Keyword)
            (java.time Instant)
            (java.util UUID)
@@ -88,72 +89,92 @@
             :opt-un [::description])
     ::valid-sub-entity-ref))
 
-(defn entity-model [model entity-key]
+(defn fetch-entity-model [model entity-key]
   (->> model
        (:entities)
        (filter #(= entity-key (:id %)))
        (first)))
 
-(defn has-all-mandatory-fields?-provider [entity-model]
-  (fn [entity]
-    (let [mandatory-fields (->> entity-model
-                                (:attributes)
-                                (filter :required)
-                                (map :id))]
-      (->> mandatory-fields
-           (map #(contains? entity %))
-           (every? true?)))))
+(defn mandatory-attributes [entity-model]
+  (->> entity-model
+       (:attributes)
+       (filter :required)
+       (map :id)
+       (vec)))
 
-(defn all-fields-valid?-provider [entity-model]
-  (let [field-to-spec (->> entity-model
-                           (:attributes)
-                           (map #(vector (:id %) (:spec %)))
-                           (into {}))]
-    (fn [entity]
-      (->> entity
-           (map #(s/valid? (field-to-spec (first %)) (last %)))
-           (every? true?)))))
+(defmacro mandatory-attributes-spec [entity-model]
+  (let [entity-id `(:id ~entity-model)
+        spec-id `(keyword
+                   (namespace ~entity-id)
+                   (str (name ~entity-id) "-with-all-required-attributes"))]
+    `(list 's/def
+           ~spec-id
+           (list
+             's/keys
+             ':req
+             (mandatory-attributes ~entity-model)))))
+
+(defn missing-mandatory-attribute [entity-model entity]
+  (let [mandatory-fields (->> entity-model
+                              (:attributes)
+                              (filter :required)
+                              (map :id))]
+    (->> mandatory-fields)))
+
+
+(defn correct-type? [field-type value]
+  (if (= (field-type 0) (type []))
+    (= (type (value 0)) (field-type 1))
+    (= (type value) (field-type 0))))
+
 
 (defn all-fields-correct-types?-provider [entity-model]
   (let [field-to-type (->> entity-model
                            (:attributes)
-                           (map #(vector (:id %) (persistence-types (:persistence-type %))))
+                           (map #(vector (:id %) (if (= ::multiple (:cardinality %))
+                                                   (vector (type []) (persistence-types (:persistence-type %)))
+                                                   (vector (persistence-types (:persistence-type %))))))
+
                            (into {}))]
     (fn [entity]
       (->> entity
-           (map #(= (field-to-type (first %)) (type (last %))))
+           (map #(correct-type? (field-to-type (first %)) (last %)))
            (every? true?)))))
 
+(def test-model
+  {:id ::data-model
+   :entities
+       [{:id ::client
+         :attributes
+             [{:id               ::first-name
+               :spec             ::simple-string
+               :label            "First-name"
+               :description      "The first name of the client"
+               :persistence-type ::string}
+              {:id               ::last-name
+               :spec             ::vector-of-strings
+               :label            "Last-name"
+               :cardinality      ::multiple
+               :description      "The last names of the client"
+               :persistence-type ::string
+               :required         true}
+              {:id               ::identification
+               :spec             ::simple-string
+               :label            "Identification"
+               :description      "The identification of the client"
+               :persistence-type ::string
+               :required         true}]}]})
 
-(defn entity-spec [model entity-key]
-  (when (not (qualified-keyword? entity-key))
-    (throw (new IllegalArgumentException "Entity-key must be a qualified keyword")))
-  (let [entity-model (entity-model model entity-key)
-        mandatory-fields-spec-name (keyword
-                                     (str entity-key
-                                          "-mandatory-fields"))
+(def test-client
+  {::first-name     "Esteban"
+   ::last-name      "Lionzo"
+   ::identification "12345453421"})
 
-        has-mandatory-fields-spec (s/def
-                                    mandatory-fields-spec-name
-                                    (has-all-mandatory-fields?-provider entity-model))
+(def test-client-no-ns
+  {:first-name     "Esteban"
+   :last-name      "Lionzo"
+   :identification "12345453421"})
 
-        valid-types-spec-name (keyword
-                                (str entity-key
-                                     "-types-valid"))
 
-        valid-types-spec (s/def
-                           valid-types-spec-name
-                           (all-fields-correct-types?-provider entity-model))
-
-        valid-fields-spec-name (keyword
-                                 (str entity-key
-                                      "-fields-valid"))
-
-        valid-fields-spec (s/def
-                            valid-fields-spec-name
-                            (all-fields-valid?-provider entity-model))]
-
-    (s/and
-      has-mandatory-fields-spec
-      valid-types-spec
-      valid-fields-spec)))
+(def test-client-bad
+  {::first-name "Esteban"})
