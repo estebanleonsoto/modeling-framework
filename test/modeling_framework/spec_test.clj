@@ -289,22 +289,6 @@
 (def email-regex #"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
 (s/def ::e-mail-spec #(re-matches email-regex %))
 
-;(deftest test-dynamic-spec-def
-;  (testing
-;    "registers a spec with the keyword in the binding"
-;    (let [random-part (UUID/randomUUID)
-;          spec-key (keyword (str ::test-key "-" random-part))
-;          result (m/dynamic-spec-def spec-key int?)]
-;      (println "Detalles: " (type spec-key) " -> " spec-key)
-;      (is (->> (s/registry)
-;               (keys)
-;               (filter #(clojure.string/includes? % (str random-part)))
-;               (first)
-;               (nil?)
-;               (not)))
-;      (is (s/valid? spec-key 1))
-;      (is (not (s/valid? spec-key "3"))))))
-
 (deftest test-create-mandatory-field-spec
   (let [test-model {:id ::data-model
                     :entities
@@ -350,174 +334,201 @@
               test-client-bad)]
         (is (not (nil? result)))))))
 
+(deftest test-valid-value-type-predicate
+  (let [predicate (m/attribute-correct-type-predicate {:id               ::first-name
+                                                       :spec             ::simple-string
+                                                       :label            "First-name"
+                                                       :description      "The first name of the client"
+                                                       :persistence-type ::m/string})]
+    (testing
+      "Created predicate returns true if attribute has type specified in attribute model"
+      (is (predicate {::first-name "John"})))
+    (testing
+      "Created predicate returns false if attribute has different type as specified in attribute model"
+      (is (not (predicate {::first-name 2}))))))
 
+(deftest test-create-valid-type-values-spec-for-simple-primitives
+  (let [model {:id ::client
+               :attributes
+                   [{:id               ::first-name
+                     :spec             ::simple-string
+                     :label            "First-name"
+                     :description      "The first name of the client"
+                     :persistence-type ::m/string}]}
+        good-entity {::first-name "John"}
+        wrong-entity {::first-name 1}
+        valid-value-types-spec (m/valid-value-types-spec model)]
+    (testing
+      "Creates always a spec"
+      (is (not (nil? valid-value-types-spec))))
+    (testing
+      "Entities with correct types pass spec"
+      (is (s/valid? valid-value-types-spec good-entity)))
+    (testing
+      "Entities with wrong type fail the spec"
+      (is (not (s/valid? valid-value-types-spec wrong-entity))))))
 
-
-
-
-;(deftest evaluate-spec
-;  (testing
-;    "The client model must pass the spec"
-;    (let [model {:id ::data-model
-;                 :entities
-;                     [{:id ::client
-;                       :attributes
-;                           [{:id               ::first-name
-;                             :spec             ::simple-string
-;                             :label            "First-name"
-;                             :description      "The first name of the client"
-;                             :persistence-type ::m/string}
-;                            {:id               ::last-name
-;                             :spec             ::vector-of-strings
-;                             :label            "Last-name"
-;                             :cardinality      ::m/multiple
-;                             :description      "The last names of the client"
-;                             :persistence-type ::m/string}
-;                            {:id               ::telephones
-;                             :spec             ::ref
-;                             :label            "Telephone"
-;                             :cardinality      ::m/multiple
-;                             :description      "The type of this telephone number"
-;                             :persistence-type ::m/ref
-;                             :sub-entity       ::telephone}
-;                            {:id               ::emails
-;                             :spec             ::ref
-;                             :label            :email/emails
-;                             :cardinality      ::m/multiple
-;                             :description      "Email addresses of the client"
-;                             :persistence-type ::m/ref
-;                             :sub-entity       ::email}
-;                            {:id               ::identification
-;                             :spec             ::simple-string
-;                             :label            "Id"
-;                             :description      "The reference of the client's identification"
-;                             :cardinality      ::m/single
-;                             :persistence-type ::m/string
-;                             :identifies       true}
-;                            {:id               ::address
-;                             :spec             ::ref
-;                             :label            "Address"
-;                             :description      "A reference to multiple addresses in an entity"
-;                             :cardinality      ::m/multiple
-;                             :persistence-type ::m/ref
-;                             :sub-entity       ::address}
-;                            {:id               ::category
-;                             :spec             ::category
-;                             :label            "Category"
-;                             :description      "The category the client belongs to"
-;                             :cardinality      ::m/multiple
-;                             :persistence-type ::m/keyword}]}
-;                      {:id ::telephone
-;                       :attributes
-;                           [{:id               ::telephone-number
-;                             :persistence-type ::m/long
-;                             :spec             ::telephone-number-spec
-;                             :label            :telephone/number
-;                             :description      "The telephone number"
-;                             :required         true}
-;                            {:id               ::telephone-type
-;                             :persistence-type ::m/keyword
-;                             :spec             ::contact-channel-type-spec
-;                             :label            :telephone/type
-;                             :description      "The type of telephone (mobile, home, work, etc."
-;                             :required         true}]}
-;                      {:id ::email
-;                       :attributes
-;                           [{:id               ::email-address
-;                             :persistence-type ::m/string
-;                             :spec             ::e-mail-spec
-;                             :label            :email/email
-;                             :description      "The email of the client"
-;                             :required         true}
-;                            {:id               ::email-type
-;                             :persistence-type ::m/keyword
-;                             :spec             ::contact-channel-type-spec
-;                             :label            :email/type
-;                             :description      "The type of email (mobile, home, work, etc."
-;                             :required         false}]}
-;                      {:id ::address
-;                       :attributes
-;                           [{:id               ::address-descriptor
-;                             :persistence-type ::m/keyword
-;                             :spec             ::contact-channel-type-spec
-;                             :label            :address/type
-;                             :description      "Describes the type of address this is. For example it can be house address office address delivery address billing address etc."
-;                             :required         true}
-;                            {:id               ::address-lines
-;                             :persistence-type ::m/string
-;                             :spec             ::simple-string
-;                             :label            :address/line
-;                             :cardinality      ::m/multiple
-;                             :description      "Street and house number details of the address"}
-;                            {:id               ::city
-;                             :persistence-type ::m/string
-;                             :label            :address/city
-;                             :spec             ::simple-string
-;                             :description      "The city or district of the address"}
-;                            {:id               ::canton
-;                             :label            :address/canton
-;                             :spec             ::simple-string
-;                             :persistence-type ::m/string
-;                             :description      "The canton (or county) of the province"}
-;                            {:id               ::state-or-province
-;                             :persistence-type ::m/string
-;                             :spec             ::simple-string
-;                             :label            :address/state-or-province
-;                             :description      "The state or province of the address"}
-;                            {:id               ::postal-code
-;                             :label            :address/postal-code
-;                             :spec             ::simple-string
-;                             :persistence-type ::m/string
-;                             :description      "The postal code of the address"}
-;                            {:id               ::country
-;                             :persistence-type ::m/string
-;                             :spec             ::simple-string
-;                             :label            :address/country
-;                             :description      "The country of the address"
-;                             :required         true}
-;                            {:id               ::coordinates
-;                             :persistence-type ::m/ref
-;                             :spec             ::re
-;                             :label            :address/coordinates
-;                             :description      "The global coordinates of the address in a map"
-;                             :sub-entity       ::coordinates}]}
-;                      {:id ::coordinates
-;                       :attributes
-;                           [{:id               ::latitude
-;                             :persistence-type ::m/float
-;                             :label            :address/latitude
-;                             :spec             ::simple-float
-;                             :description      "The latitude of the location in the map in decimal degrees"
-;                             :required         true}
-;                            {:id               ::longitude
-;                             :persistence-type ::m/float
-;                             :label            :address/longitude
-;                             :spec             ::simple-float
-;                             :description      "The longitude of the location in the map in decimal degrees"
-;                             :required         true}]}]}
-;          test-entity {;::first-name     "Esteban"
-;                       ;::last-name      ["León" "Soto"]}
-;                       ::telephones [{::telephone-number 123784902318794321
-;                                      ::telephone-type   :home}]}
-;          ;::email          [{::email-address "esteban@email.com"
-;          ;                   ::email-type    :home}]
-;          ;::identification "1-456A-5456456"
-;          ;::address        [{::address-descriptor :home
-;          ;                   ::address-lines      ["De la farmacia La Paulina"
-;          ;                                         "(que ya no existe)450 varas"
-;          ;                                         "al este"]
-;          ;                   ::city               "Paso de la Vaca"
-;          ;                   ::canton             "San José"
-;          ;                   ::state-or-province  "San José"
-;          ;                   ::postal-code        "10101"
-;          ;                   ::country            "Costa Rica"
-;          ;                   ::coordinates        {::latitude  9.945511223885042
-;          ;                                         ::longitude -84.12367698123887}}]
-;          ;::category       :compita}
-;          spec (m/entity-spec model ::client)]
-;      (s/explain spec test-entity)
-;      (is (s/valid? spec test-entity)))))
-
-
-
-
+(deftest evaluate-spec
+  (testing
+    "The client model must pass the spec"
+    (let [model {:id ::data-model
+                 :entities
+                     [{:id ::client
+                       :attributes
+                           [{:id               ::first-name
+                             :spec             ::simple-string
+                             :label            "First-name"
+                             :description      "The first name of the client"
+                             :persistence-type ::m/string}
+                            {:id               ::last-name
+                             :spec             ::vector-of-strings
+                             :label            "Last-name"
+                             :cardinality      ::m/multiple
+                             :description      "The last names of the client"
+                             :persistence-type ::m/string}
+                            {:id               ::telephones
+                             :spec             ::ref
+                             :label            "Telephone"
+                             :cardinality      ::m/multiple
+                             :description      "The type of this telephone number"
+                             :persistence-type ::m/ref
+                             :sub-entity       ::telephone}
+                            {:id               ::emails
+                             :spec             ::ref
+                             :label            :email/emails
+                             :cardinality      ::m/multiple
+                             :description      "Email addresses of the client"
+                             :persistence-type ::m/ref
+                             :sub-entity       ::email}
+                            {:id               ::identification
+                             :spec             ::simple-string
+                             :label            "Id"
+                             :description      "The reference of the client's identification"
+                             :cardinality      ::m/single
+                             :persistence-type ::m/string
+                             :identifies       true}
+                            {:id               ::address
+                             :spec             ::ref
+                             :label            "Address"
+                             :description      "A reference to multiple addresses in an entity"
+                             :cardinality      ::m/multiple
+                             :persistence-type ::m/ref
+                             :sub-entity       ::address}
+                            {:id               ::category
+                             :spec             ::category
+                             :label            "Category"
+                             :description      "The category the client belongs to"
+                             :cardinality      ::m/multiple
+                             :persistence-type ::m/keyword}]}
+                      {:id ::telephone
+                       :attributes
+                           [{:id               ::telephone-number
+                             :persistence-type ::m/long
+                             :spec             ::telephone-number-spec
+                             :label            :telephone/number
+                             :description      "The telephone number"
+                             :required         true}
+                            {:id               ::telephone-type
+                             :persistence-type ::m/keyword
+                             :spec             ::contact-channel-type-spec
+                             :label            :telephone/type
+                             :description      "The type of telephone (mobile, home, work, etc."
+                             :required         true}]}
+                      {:id ::email
+                       :attributes
+                           [{:id               ::email-address
+                             :persistence-type ::m/string
+                             :spec             ::e-mail-spec
+                             :label            :email/email
+                             :description      "The email of the client"
+                             :required         true}
+                            {:id               ::email-type
+                             :persistence-type ::m/keyword
+                             :spec             ::contact-channel-type-spec
+                             :label            :email/type
+                             :description      "The type of email (mobile, home, work, etc."
+                             :required         false}]}
+                      {:id ::address
+                       :attributes
+                           [{:id               ::address-descriptor
+                             :persistence-type ::m/keyword
+                             :spec             ::contact-channel-type-spec
+                             :label            :address/type
+                             :description      "Describes the type of address this is. For example it can be house address office address delivery address billing address etc."
+                             :required         true}
+                            {:id               ::address-lines
+                             :persistence-type ::m/string
+                             :spec             ::simple-string
+                             :label            :address/line
+                             :cardinality      ::m/multiple
+                             :description      "Street and house number details of the address"}
+                            {:id               ::city
+                             :persistence-type ::m/string
+                             :label            :address/city
+                             :spec             ::simple-string
+                             :description      "The city or district of the address"}
+                            {:id               ::canton
+                             :label            :address/canton
+                             :spec             ::simple-string
+                             :persistence-type ::m/string
+                             :description      "The canton (or county) of the province"}
+                            {:id               ::state-or-province
+                             :persistence-type ::m/string
+                             :spec             ::simple-string
+                             :label            :address/state-or-province
+                             :description      "The state or province of the address"}
+                            {:id               ::postal-code
+                             :label            :address/postal-code
+                             :spec             ::simple-string
+                             :persistence-type ::m/string
+                             :description      "The postal code of the address"}
+                            {:id               ::country
+                             :persistence-type ::m/string
+                             :spec             ::simple-string
+                             :label            :address/country
+                             :description      "The country of the address"
+                             :required         true}
+                            {:id               ::coordinates
+                             :persistence-type ::m/ref
+                             :spec             ::re
+                             :label            :address/coordinates
+                             :description      "The global coordinates of the address in a map"
+                             :sub-entity       ::coordinates}]}
+                      {:id ::coordinates
+                       :attributes
+                           [{:id               ::latitude
+                             :persistence-type ::m/float
+                             :label            :address/latitude
+                             :spec             ::simple-float
+                             :description      "The latitude of the location in the map in decimal degrees"
+                             :required         true}
+                            {:id               ::longitude
+                             :persistence-type ::m/float
+                             :label            :address/longitude
+                             :spec             ::simple-float
+                             :description      "The longitude of the location in the map in decimal degrees"
+                             :required         true}]}]}
+          test-entity {::first-name     "Esteban"
+                       ::last-name      ["León" "Soto"]
+                       ::identification "24308978902341"
+                       ::telephones     [{::telephone-number 123784902318794321
+                                          ::telephone-type   :home}]}
+          ;::email          [{::email-address "esteban@email.com"
+          ;                   ::email-type    :home}]
+          ;::identification "1-456A-5456456"
+          ;::address        [{::address-descriptor :home
+          ;                   ::address-lines      ["De la farmacia La Paulina"
+          ;                                         "(que ya no existe)450 varas"
+          ;                                         "al este"]
+          ;                   ::city               "Paso de la Vaca"
+          ;                   ::canton             "San José"
+          ;                   ::state-or-province  "San José"
+          ;                   ::postal-code        "10101"
+          ;                   ::country            "Costa Rica"
+          ;                   ::coordinates        {::latitude  9.945511223885042
+          ;                                         ::longitude -84.12367698123887}}]
+          ;::category       :compita}
+          not-passing-test-entity {::first-name "John"}
+          mandatroy-attributes-spec (m/mandatory-attributes-spec (m/fetch-entity-model model ::client))]
+      (is (s/valid? ::client-with-all-required-attributes test-entity))
+      (is (not (s/valid? ::client-with-all-required-attributes not-passing-test-entity))))))

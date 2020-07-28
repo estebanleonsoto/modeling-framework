@@ -114,14 +114,6 @@
              ':req
              (mandatory-attributes ~entity-model)))))
 
-(defn missing-mandatory-attribute [entity-model entity]
-  (let [mandatory-fields (->> entity-model
-                              (:attributes)
-                              (filter :required)
-                              (map :id))]
-    (->> mandatory-fields)))
-
-
 (defn correct-type? [field-type value]
   (if (= (field-type 0) (type []))
     (= (type (value 0)) (field-type 1))
@@ -141,40 +133,37 @@
            (map #(correct-type? (field-to-type (first %)) (last %)))
            (every? true?)))))
 
-(def test-model
-  {:id ::data-model
-   :entities
-       [{:id ::client
-         :attributes
-             [{:id               ::first-name
-               :spec             ::simple-string
-               :label            "First-name"
-               :description      "The first name of the client"
-               :persistence-type ::string}
-              {:id               ::last-name
-               :spec             ::vector-of-strings
-               :label            "Last-name"
-               :cardinality      ::multiple
-               :description      "The last names of the client"
-               :persistence-type ::string
-               :required         true}
-              {:id               ::identification
-               :spec             ::simple-string
-               :label            "Identification"
-               :description      "The identification of the client"
-               :persistence-type ::string
-               :required         true}]}]})
+(defn type-spec-keyword [model]
+  (keyword
+    (str (namespace (model :id)))
+    (str (name (model :id)) "-with-all-correct-types")))
 
-(def test-client
-  {::first-name     "Esteban"
-   ::last-name      "Lionzo"
-   ::identification "12345453421"})
-
-(def test-client-no-ns
-  {:first-name     "Esteban"
-   :last-name      "Lionzo"
-   :identification "12345453421"})
+(defn attribute-correct-type-predicate [attribute-model]
+  (fn [entity]
+    (or (not (contains? entity (:id attribute-model)))
+        (= (type (entity (:id attribute-model)))
+           (persistence-types (:persistence-type attribute-model))))))
 
 
-(def test-client-bad
-  {::first-name "Esteban"})
+(defmacro correct-attribute-type-spec [attribute-model]
+  `(list 's/def
+         (type-spec-keyword ~attribute-model)
+         (attribute-correct-type-predicate ~attribute-model)))
+
+(defmacro join-specs [spec-ids]
+  `(conj ~spec-ids 's/and))
+
+(defmacro def-entity-correct-types-spec [entity-model attribute-types-spec]
+  `(list 's/def
+         (type-spec-keyword ~entity-model)
+         ~attribute-types-spec))
+
+
+(defn valid-value-types-spec [entity-model]
+  (let [attribute-type-specs (->> entity-model
+                                  (:attributes)
+                                  (map #(correct-attribute-type-spec %))
+                                  (map eval)
+                                  (join-specs))
+        all-attributes-with-correct-type (def-entity-correct-types-spec entity-model attribute-type-specs)]
+    (eval all-attributes-with-correct-type)))
