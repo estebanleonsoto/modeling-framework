@@ -138,11 +138,25 @@
     (str (namespace (model :id)))
     (str (name (model :id)) "-with-all-correct-types")))
 
+(defn single-element-correct-type [attribute-model entity]
+      (= (type (entity (:id attribute-model)))
+         (persistence-types (:persistence-type attribute-model))))
+
+(defn collection-elements-correct-type [attribute-model entity]
+  (let [attribute-value (entity (:id attribute-model))
+        element-type (get persistence-types (:persistence-type attribute-model))]
+    (and (coll? attribute-value)
+         (every?
+           #(= (type %) element-type)
+           attribute-value))))
+
+
 (defn attribute-correct-type-predicate [attribute-model]
   (fn [entity]
     (or (not (contains? entity (:id attribute-model)))
-        (= (type (entity (:id attribute-model)))
-           (persistence-types (:persistence-type attribute-model))))))
+        (if (= (attribute-model :cardinality) ::multiple)
+          (collection-elements-correct-type attribute-model entity)
+          (single-element-correct-type attribute-model entity)))))
 
 
 (defmacro correct-attribute-type-spec [attribute-model]

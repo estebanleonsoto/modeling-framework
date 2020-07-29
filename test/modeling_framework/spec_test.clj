@@ -167,7 +167,7 @@
                                              :persistence-type ::m/string
                                              :required         true}]}]}))))
 
-(deftest entity-model-test
+(deftest fetch-entity-model-test
   (let [model {:id       :model-name
                :entities [{:id         :test-entity
                            :attributes [{:id               :test-attribute
@@ -289,7 +289,7 @@
 (def email-regex #"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
 (s/def ::e-mail-spec #(re-matches email-regex %))
 
-(deftest test-create-mandatory-field-spec
+(deftest test-required-attribute-spec
   (let [test-model {:id ::data-model
                     :entities
                         [{:id ::client
@@ -302,7 +302,6 @@
                                {:id               ::last-name
                                 :spec             ::vector-of-strings
                                 :label            "Last-name"
-                                :cardinality      ::multiple
                                 :description      "The last names of the client"
                                 :persistence-type ::string
                                 :required         true}
@@ -333,6 +332,51 @@
               spec-for-fields
               test-client-bad)]
         (is (not (nil? result)))))))
+
+(deftest test-attribute-correct-type-predicate
+  (let [test-model {:id               ::last-name
+                    :spec             ::vector-of-strings
+                    :label            "Last-name"
+                    :cardinality      ::m/multiple
+                    :description      "The last names of the client"
+                    :persistence-type ::m/string
+                    :required         true}
+        test-client-good {::last-name ["Doe" "Windsor"]}
+        test-client-bad-content {::last-name [1 2]}
+        test-client-bad-no-collection {::last-name "Doe"}
+        correct-type? (m/attribute-correct-type-predicate test-model)]
+    (testing
+      "True for matching type inside a collection for attributes with cardinality multiple"
+      (is (correct-type? test-client-good)))
+    (testing
+      "False if the collection is of a different type then persistence-type"
+      (is (not (correct-type? test-client-bad-content))))
+    (testing
+      "False if value is not a collection"
+      (is (not (correct-type? test-client-bad-no-collection))))))
+
+
+(deftest test-valid-type-with-attributes-cardinality-multiple-spec
+  (let [test-model {:id ::client
+                    :attributes
+                        [{:id               ::last-name
+                          :spec             ::vector-of-strings
+                          :label            "Last-name"
+                          :cardinality      ::m/multiple
+                          :description      "The last names of the client"
+                          :persistence-type ::m/string
+                          :required         true}]}
+        test-client-good {::last-name      ["Doe" "Windsor"]}
+        test-client-bad {::last-name "Doe"}
+        spec-for-fields (m/valid-value-types-spec test-model)]
+    (testing
+      "A vector with values must pass the the valid types specs"
+      (do
+        (clojure.pprint/pprint (s/explain-data spec-for-fields test-client-good))
+        (is (s/valid? spec-for-fields test-client-good))))
+    (testing
+      "A single value (not in a collection) cannot pass the valid types specs"
+      (is (not (s/valid? spec-for-fields test-client-bad))))))
 
 (deftest test-valid-value-type-predicate
   (let [predicate (m/attribute-correct-type-predicate {:id               ::first-name
