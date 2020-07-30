@@ -133,10 +133,10 @@
            (map #(correct-type? (field-to-type (first %)) (last %)))
            (every? true?)))))
 
-(defn type-spec-keyword [model]
+(defn spec-keyword [model suffix]
   (keyword
     (str (namespace (model :id)))
-    (str (name (model :id)) "-with-all-correct-types")))
+    (str (name (model :id)) suffix)))
 
 (defn single-element-correct-type [attribute-model entity]
       (= (type (entity (:id attribute-model)))
@@ -161,7 +161,7 @@
 
 (defmacro correct-attribute-type-spec [attribute-model]
   `(list 's/def
-         (type-spec-keyword ~attribute-model)
+         (spec-keyword ~attribute-model "-with-all-correct-types")
          (attribute-correct-type-predicate ~attribute-model)))
 
 (defmacro join-specs [spec-ids]
@@ -169,7 +169,7 @@
 
 (defmacro def-entity-correct-types-spec [entity-model attribute-types-spec]
   `(list 's/def
-         (type-spec-keyword ~entity-model)
+         (spec-keyword ~entity-model "-with-all-correct-types")
          ~attribute-types-spec))
 
 
@@ -181,3 +181,18 @@
                                   (join-specs))
         all-attributes-with-correct-type (def-entity-correct-types-spec entity-model attribute-type-specs)]
     (eval all-attributes-with-correct-type)))
+
+(defmacro def-entity-valid?-spec [entity-model attributes-valid?]
+  `(list 's/def
+         (spec-keyword ~entity-model "-all-attributes-valid?")
+         ~attributes-valid?))
+
+(defn all-attributes-valid-spec [entity-model]
+  (let [attribute->spec (->> entity-model
+                             (:attributes)
+                             (filter #(:spec %))
+                             (map #(vector (:id %) (:spec %)))
+                             (into {}))
+        attributes-valid? (fn [entity]
+                            (every? #(s/valid? (attribute->spec (first %)) (second %)) entity))]
+    (eval (def-entity-valid?-spec entity-model attributes-valid?))))

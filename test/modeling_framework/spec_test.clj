@@ -366,7 +366,7 @@
                           :description      "The last names of the client"
                           :persistence-type ::m/string
                           :required         true}]}
-        test-client-good {::last-name      ["Doe" "Windsor"]}
+        test-client-good {::last-name ["Doe" "Windsor"]}
         test-client-bad {::last-name "Doe"}
         spec-for-fields (m/valid-value-types-spec test-model)]
     (testing
@@ -411,6 +411,33 @@
     (testing
       "Entities with wrong type fail the spec"
       (is (not (s/valid? valid-value-types-spec wrong-entity))))))
+
+(deftest test-attributes-spec-to-entity-spec
+  (let [model {:id ::client
+               :attributes
+                   [{:id               ::first-name
+                     :spec             ::simple-string
+                     :label            "First-name"
+                     :description      "The first name of the client"
+                     :persistence-type ::m/string}
+                    {:id               ::last-name
+                     :spec             ::vector-of-strings
+                     :label            "Last-name"
+                     :cardinality      ::m/multiple
+                     :description      "The last names of the client"
+                     :persistence-type ::m/string}
+                    {:id               ::unspec-ed
+                     :cardinality      ::m/multiple
+                     :persistence-type ::m/string}]}
+        test-entity-good {::first-name "John"
+                          ::last-name ["Doe" "Smith"]}
+        test-entity-bad {::first-name 4
+                         ::last-name #{"Doe" "Smith"}}
+        entity-attributes-spec (m/all-attributes-valid-spec model)]
+    (is (not (nil? entity-attributes-spec)))
+    (is (s/valid? entity-attributes-spec test-entity-good))
+    (is (not (s/valid? entity-attributes-spec test-entity-bad)))))
+
 
 (deftest evaluate-spec
   (testing
