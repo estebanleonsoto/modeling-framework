@@ -27,10 +27,12 @@
   #{::single
     ::multiple})
 
-
+(s/def
+  ::qualified-keyword
+  (s/and keyword? qualified-ident?))
 
 (s/def ::i18n-ref keyword?)
-(s/def ::id keyword?)
+(s/def ::id ::qualified-keyword)
 (s/def ::label (s/or :literal string? :keyword ::i18n-ref))
 (s/def ::spec keyword?)
 (s/def ::description string?)
@@ -38,7 +40,7 @@
 (s/def ::cardinality #(contains? cardinality-values %))
 (s/def ::required boolean?)
 (s/def ::identifies boolean?)
-(s/def ::sub-entity keyword?)
+(s/def ::sub-entity ::id)
 (s/def ::default-value #(not (nil? %)))
 
 
@@ -102,45 +104,74 @@
        (map :id)
        (vec)))
 
-(defmacro mandatory-attributes-spec [entity-model]
-  (let [entity-id `(:id ~entity-model)
-        spec-id `(keyword
-                   (namespace ~entity-id)
-                   (str (name ~entity-id) "-with-all-required-attributes"))]
-    `(list 's/def
-           ~spec-id
-           (list
-             's/keys
-             ':req
-             (mandatory-attributes ~entity-model)))))
-
-(defn correct-type? [field-type value]
-  (if (= (field-type 0) (type []))
-    (= (type (value 0)) (field-type 1))
-    (= (type value) (field-type 0))))
-
-
-(defn all-fields-correct-types?-provider [entity-model]
-  (let [field-to-type (->> entity-model
-                           (:attributes)
-                           (map #(vector (:id %) (if (= ::multiple (:cardinality %))
-                                                   (vector (type []) (persistence-types (:persistence-type %)))
-                                                   (vector (persistence-types (:persistence-type %))))))
-
-                           (into {}))]
-    (fn [entity]
-      (->> entity
-           (map #(correct-type? (field-to-type (first %)) (last %)))
-           (every? true?)))))
-
-(defn spec-keyword [model suffix]
+(defn spec-keyword [model-id suffix]
   (keyword
-    (str (namespace (model :id)))
-    (str (name (model :id)) suffix)))
+    (str (namespace model-id))
+    (str (name model-id) suffix)))
+
+(defn- sub-entities [entity-model]
+  (println "chichi")
+  (->> entity-model
+       (:attributes)
+       (map :sub-entity)
+       (filter #(not (nil? %)))
+       (vec)))
+
+(defn- get-id-or-complain [model]
+  (let [id (:id model)]
+    (when (or (not (map? model)) (nil? id))
+      (throw (new IllegalArgumentException (str "Model is missing mandatory :id field. Model: '" model "'"))))
+    id))
+
+(defn has-sub-with-all-required-atts-keyword [container-entity-id sub-entity-id]
+  (keyword (namespace container-entity-id)
+           (str (name container-entity-id)
+                "-has-"
+                (name sub-entity-id)
+                "-with-all-required-attributes")))
+
+(defmacro mandatory-attributes-entity-spec [entity-model-symbol]
+  (let [entity-model (eval entity-model-symbol)
+        sub-entities (sub-entities entity-model)
+        mandatory-attributes-spec-name-suffix "-with-all-required-attributes"
+        entity-id (get-id-or-complain entity-model)
+        spec-id (spec-keyword entity-id mandatory-attributes-spec-name-suffix)]
+
+    `(do
+       ~(->> sub-entities
+             (map (fn [sub-entity-id]
+                    (let [entity-param (gensym "father-entity-param-")
+                          sub-entity-value-param (gensym "sub-entity-value-param-")]
+                      `(s/def
+                         ~(has-sub-with-all-required-atts-keyword entity-id sub-entity-id)
+                         (fn [~entity-param]
+                           (let [~sub-entity-value-param (~sub-entity-id ~entity-param)]
+                             (if (nil? ~sub-entity-value-param)
+                               true
+                               (s/valid? ~(spec-keyword sub-entity-id mandatory-attributes-spec-name-suffix)
+                                         ~sub-entity-value-param))))))))
+             (cons `do))
+       ~(if (empty? sub-entities)
+          `(s/def ~spec-id (s/keys :req ~(mandatory-attributes entity-model)))
+          `(s/def ~spec-id
+             ~(->> sub-entities
+                   (map #(has-sub-with-all-required-atts-keyword entity-id %))
+                   (cons `(s/keys :req ~(mandatory-attributes entity-model)))
+                   (cons `s/and)))))))
+
+(defmacro mandatory-attributes-model-spec
+  "Registers all mandatory attributes specs related to entities in this model"
+  [model]
+  (->> model
+       (eval)
+       (:entities)
+       (map (fn [entity-model]
+              `(mandatory-attributes-entity-spec ~entity-model)))
+       (cons 'do)))
 
 (defn single-element-correct-type [attribute-model entity]
-      (= (type (entity (:id attribute-model)))
-         (persistence-types (:persistence-type attribute-model))))
+  (= (type (entity (:id attribute-model)))
+     (persistence-types (:persistence-type attribute-model))))
 
 (defn collection-elements-correct-type [attribute-model entity]
   (let [attribute-value (entity (:id attribute-model))
@@ -161,7 +192,7 @@
 
 (defmacro correct-attribute-type-spec [attribute-model]
   `(list 's/def
-         (spec-keyword ~attribute-model "-with-all-correct-types")
+         (spec-keyword (:id ~attribute-model) "-with-all-correct-types")
          (attribute-correct-type-predicate ~attribute-model)))
 
 (defmacro join-specs [spec-ids]
@@ -169,7 +200,7 @@
 
 (defmacro def-entity-correct-types-spec [entity-model attribute-types-spec]
   `(list 's/def
-         (spec-keyword ~entity-model "-with-all-correct-types")
+         (spec-keyword (:id ~entity-model) "-with-all-correct-types")
          ~attribute-types-spec))
 
 
@@ -184,7 +215,7 @@
 
 (defmacro def-entity-valid?-spec [entity-model attributes-valid?]
   `(list 's/def
-         (spec-keyword ~entity-model "-all-attributes-valid?")
+         (spec-keyword (:id ~entity-model) "-all-attributes-valid?")
          ~attributes-valid?))
 
 (defn all-attributes-valid-spec [entity-model]
@@ -196,3 +227,8 @@
         attributes-valid? (fn [entity]
                             (every? #(s/valid? (attribute->spec (first %)) (second %)) entity))]
     (eval (def-entity-valid?-spec entity-model attributes-valid?))))
+
+(defmacro load-specs-for-model [model]
+  (let [model-value (eval model)]
+    `(do
+       (mandatory-attributes-model-spec ~model))))
