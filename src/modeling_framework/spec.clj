@@ -110,11 +110,10 @@
     (str (name model-id) suffix)))
 
 (defn- sub-entities [entity-model]
-  (println "chichi")
   (->> entity-model
        (:attributes)
-       (map :sub-entity)
-       (filter #(not (nil? %)))
+       (map #(vector (:id %)(:sub-entity %)))
+       (filter #(not (nil? (second %))))
        (vec)))
 
 (defn- get-id-or-complain [model]
@@ -139,13 +138,13 @@
 
     `(do
        ~(->> sub-entities
-             (map (fn [sub-entity-id]
+             (map (fn [[field-name sub-entity-id]]
                     (let [entity-param (gensym "father-entity-param-")
                           sub-entity-value-param (gensym "sub-entity-value-param-")]
                       `(s/def
                          ~(has-sub-with-all-required-atts-keyword entity-id sub-entity-id)
                          (fn [~entity-param]
-                           (let [~sub-entity-value-param (~sub-entity-id ~entity-param)]
+                           (let [~sub-entity-value-param (~field-name ~entity-param)]
                              (if (nil? ~sub-entity-value-param)
                                true
                                (s/valid? ~(spec-keyword sub-entity-id mandatory-attributes-spec-name-suffix)
@@ -155,6 +154,7 @@
           `(s/def ~spec-id (s/keys :req ~(mandatory-attributes entity-model)))
           `(s/def ~spec-id
              ~(->> sub-entities
+                   (map second)
                    (map #(has-sub-with-all-required-atts-keyword entity-id %))
                    (cons `(s/keys :req ~(mandatory-attributes entity-model)))
                    (cons `s/and)))))))

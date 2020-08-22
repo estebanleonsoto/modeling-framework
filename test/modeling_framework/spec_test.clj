@@ -299,49 +299,53 @@
 (def email-regex #"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
 (s/def ::e-mail-spec #(re-matches email-regex %))
 
-;(deftest test-required-attribute-spec
-;  (let [test-model {:id ::data-model
-;                    :entities
-;                        [{:id ::client
-;                          :attributes
-;                              [{:id               ::first-name
-;                                :spec             ::simple-string
-;                                :label            "First-name"
-;                                :description      "The first name of the client"
-;                                :persistence-type ::string}
-;                               {:id               ::last-name
-;                                :spec             ::vector-of-strings
-;                                :label            "Last-name"
-;                                :description      "The last names of the client"
-;                                :persistence-type ::string
-;                                :required         true}
-;                               {:id               ::identification
-;                                :spec             ::simple-string
-;                                :label            "Identification"
-;                                :description      "The identification of the client"
-;                                :persistence-type ::string
-;                                :required         true}]}]}
-;        test-client-good {::first-name     "John"
-;                          ::last-name      "Doe"
-;                          ::identification "457899ki23"}
-;        test-client-bad {::first-name "Mary"}
-;        spec-for-fields (m/mandatory-attributes-entity-spec (m/fetch-entity-model test-model ::client))]
-;    (testing
-;      "The spec for client model must have been created"
-;      (is (not (nil? spec-for-fields))))
-;    (testing
-;      "A good entity passes the all required attributes spec"
-;      (let [result (s/explain
-;                     spec-for-fields
-;                     test-client-good)]
-;        (is (nil? result))))
-;    (testing
-;      "A bad entity is rejected by the required attributes spec"
-;      (let [result
-;            (s/explain-data
-;              spec-for-fields
-;              test-client-bad)]
-;        (is (not (nil? result)))))))
+(def test-required-attribute-spec-model
+  {:id ::data-model
+   :entities
+       [{:id ::client
+         :attributes
+             [{:id               ::first-name
+               :spec             ::simple-string
+               :label            "First-name"
+               :description      "The first name of the client"
+               :persistence-type ::string}
+              {:id               ::last-name
+               :spec             ::vector-of-strings
+               :label            "Last-name"
+               :description      "The last names of the client"
+               :persistence-type ::string
+               :required         true}
+              {:id               ::identification
+               :spec             ::simple-string
+               :label            "Identification"
+               :description      "The identification of the client"
+               :persistence-type ::string
+               :required         true}]}]})
+
+(deftest test-required-attribute-spec
+  (let [test-client-good {::first-name     "John"
+                          ::last-name      "Doe"
+                          ::identification "457899ki23"}
+        test-client-bad {::first-name "Mary"}]
+
+    (do
+      (m/mandatory-attributes-entity-spec (m/fetch-entity-model test-required-attribute-spec-model ::client))
+      (testing
+        "The spec for client model must have been created"
+        (is (contains? (s/registry) ::client-with-all-required-attributes)))
+      (testing
+        "A good entity passes the all required attributes spec"
+        (let [result (s/explain
+                       ::client-with-all-required-attributes
+                       test-client-good)]
+          (is (nil? result))))
+      (testing
+        "A bad entity is rejected by the required attributes spec"
+        (let [result
+              (s/explain-data
+                ::client-with-all-required-attributes
+                test-client-bad)]
+          (is (not (nil? result))))))))
 
 (deftest test-attribute-correct-type-predicate
   (let [test-model {:id               ::last-name
@@ -448,179 +452,182 @@
     (is (s/valid? entity-attributes-spec test-entity-good))
     (is (not (s/valid? entity-attributes-spec test-entity-bad)))))
 
-;(deftest mandatory-spec-recursive
-;  (testing
-;    "Spec validation must call validation for its sub-entity"
-;    (let [model {:id ::sub-entity-test-model
-;                 :entities
-;                     [{:id ::main-entity
-;                       :attributes
-;                           [{:id               ::entity-id
-;                             :label            "Id"
-;                             :persistence-type ::m/string}
-;                            {:id               ::sub-entity-entry
-;                             :label            "Sub-entity"
-;                             :persistence-type ::m/ref
-;                             :sub-entity       ::sub-entity
-;                             :required         true}]}
-;                      {:id ::sub-entity
-;                       :attributes
-;                           [{:id               ::sub-entity-id
-;                             :label            "Sub Entity Id"
-;                             :persistence-type ::m/string
-;                             :required         true}]}]}
-;          specs (m/mandatory-attributes-entity-spec model)
-;          good-value {::entity-id "test-entity-1"
-;                      ::sub-entity-entry
-;                                  {::sub-entity-id "sub-entity-1"}}
-;          bad-value {::entity-id "test-entity-2"
-;                     ::sub-entity-entry
-;                                 {::wrong-key 3}}]
-;      (is (s/valid? ::main-entity-with-all-required-attributes good-value))
-;      (is (not (s/valid? ::main-entity-with-all-required-attributes bad-value))))))
+(def mandatory-spec-recursive-model {:id ::sub-entity-test-model
+                                     :entities
+                                         [{:id ::main-entity-rec-test
+                                           :attributes
+                                               [{:id               ::entity-id
+                                                 :label            "Id"
+                                                 :persistence-type ::m/string}
+                                                {:id               ::sub-entity-entry
+                                                 :label            "Sub-entity"
+                                                 :persistence-type ::m/ref
+                                                 :sub-entity       ::sub-entity-rec-test
+                                                 :required         true}]}
+                                          {:id ::sub-entity-rec-test
+                                           :attributes
+                                               [{:id               ::sub-entity-id
+                                                 :label            "Sub Entity Id"
+                                                 :persistence-type ::m/string
+                                                 :required         true}]}]})
 
+(deftest mandatory-spec-recursive
+  (testing
+    "Spec validation must call validation for its sub-entity"
+    (do
+      (m/mandatory-attributes-model-spec mandatory-spec-recursive-model)
+      (let [good-value {::entity-id "test-entity-1"
+                        ::sub-entity-entry
+                                    {::sub-entity-id "sub-entity-1"}}
+            bad-value {::entity-id "test-entity-2"
+                       ::sub-entity-entry
+                                   {::wrong-key 3}}]
+        (is (s/valid? ::main-entity-rec-test-with-all-required-attributes good-value))
+        (is (not (s/valid? ::main-entity-rec-test-with-all-required-attributes bad-value)))))))
+
+(def online-shop-model
+  {:id ::data-model
+   :entities
+       [{:id ::client
+         :attributes
+             [{:id               ::first-name
+               :spec             ::simple-string
+               :label            "First-name"
+               :description      "The first name of the client"
+               :persistence-type ::m/string}
+              {:id               ::last-name
+               :spec             ::vector-of-strings
+               :label            "Last-name"
+               :cardinality      ::m/multiple
+               :description      "The last names of the client"
+               :persistence-type ::m/string}
+              {:id               ::telephones
+               :spec             ::ref
+               :label            "Telephone"
+               :cardinality      ::m/multiple
+               :description      "The type of this telephone number"
+               :persistence-type ::m/ref
+               :sub-entity       ::telephone}
+              {:id               ::emails
+               :spec             ::ref
+               :label            :email/emails
+               :cardinality      ::m/multiple
+               :description      "Email addresses of the client"
+               :persistence-type ::m/ref
+               :sub-entity       ::email}
+              {:id               ::identification
+               :spec             ::simple-string
+               :label            "Id"
+               :description      "The reference of the client's identification"
+               :cardinality      ::m/single
+               :persistence-type ::m/string
+               :identifies       true}
+              {:id               ::address
+               :spec             ::ref
+               :label            "Address"
+               :description      "A reference to multiple addresses in an entity"
+               :cardinality      ::m/multiple
+               :persistence-type ::m/ref
+               :sub-entity       ::address}
+              {:id               ::category
+               :spec             ::category
+               :label            "Category"
+               :description      "The category the client belongs to"
+               :cardinality      ::m/multiple
+               :persistence-type ::m/keyword}]}
+        {:id ::telephone
+         :attributes
+             [{:id               ::telephone-number
+               :persistence-type ::m/long
+               :spec             ::telephone-number-spec
+               :label            :telephone/number
+               :description      "The telephone number"
+               :required         true}
+              {:id               ::telephone-type
+               :persistence-type ::m/keyword
+               :spec             ::contact-channel-type-spec
+               :label            :telephone/type
+               :description      "The type of telephone (mobile, home, work, etc."
+               :required         true}]}
+        {:id ::email
+         :attributes
+             [{:id               ::email-address
+               :persistence-type ::m/string
+               :spec             ::e-mail-spec
+               :label            :email/email
+               :description      "The email of the client"
+               :required         true}
+              {:id               ::email-type
+               :persistence-type ::m/keyword
+               :spec             ::contact-channel-type-spec
+               :label            :email/type
+               :description      "The type of email (mobile, home, work, etc."
+               :required         false}]}
+        {:id ::address
+         :attributes
+             [{:id               ::address-descriptor
+               :persistence-type ::m/keyword
+               :spec             ::contact-channel-type-spec
+               :label            :address/type
+               :description      "Describes the type of address this is. For example it can be house address office address delivery address billing address etc."
+               :required         true}
+              {:id               ::address-lines
+               :persistence-type ::m/string
+               :spec             ::simple-string
+               :label            :address/line
+               :cardinality      ::m/multiple
+               :description      "Street and house number details of the address"}
+              {:id               ::city
+               :persistence-type ::m/string
+               :label            :address/city
+               :spec             ::simple-string
+               :description      "The city or district of the address"}
+              {:id               ::canton
+               :label            :address/canton
+               :spec             ::simple-string
+               :persistence-type ::m/string
+               :description      "The canton (or county) of the province"}
+              {:id               ::state-or-province
+               :persistence-type ::m/string
+               :spec             ::simple-string
+               :label            :address/state-or-province
+               :description      "The state or province of the address"}
+              {:id               ::postal-code
+               :label            :address/postal-code
+               :spec             ::simple-string
+               :persistence-type ::m/string
+               :description      "The postal code of the address"}
+              {:id               ::country
+               :persistence-type ::m/string
+               :spec             ::simple-string
+               :label            :address/country
+               :description      "The country of the address"
+               :required         true}
+              {:id               ::coordinates
+               :persistence-type ::m/ref
+               :spec             ::re
+               :label            :address/coordinates
+               :description      "The global coordinates of the address in a map"
+               :sub-entity       ::coordinates}]}
+        {:id ::coordinates
+         :attributes
+             [{:id               ::latitude
+               :persistence-type ::m/float
+               :label            :address/latitude
+               :spec             ::simple-float
+               :description      "The latitude of the location in the map in decimal degrees"
+               :required         true}
+              {:id               ::longitude
+               :persistence-type ::m/float
+               :label            :address/longitude
+               :spec             ::simple-float
+               :description      "The longitude of the location in the map in decimal degrees"
+               :required         true}]}]})
 
 ;(deftest evaluate-spec
 ;  (testing
 ;    "The client model must pass the spec"
-;    (let [model {:id ::data-model
-;                 :entities
-;                     [{:id ::client
-;                       :attributes
-;                           [{:id               ::first-name
-;                             :spec             ::simple-string
-;                             :label            "First-name"
-;                             :description      "The first name of the client"
-;                             :persistence-type ::m/string}
-;                            {:id               ::last-name
-;                             :spec             ::vector-of-strings
-;                             :label            "Last-name"
-;                             :cardinality      ::m/multiple
-;                             :description      "The last names of the client"
-;                             :persistence-type ::m/string}
-;                            {:id               ::telephones
-;                             :spec             ::ref
-;                             :label            "Telephone"
-;                             :cardinality      ::m/multiple
-;                             :description      "The type of this telephone number"
-;                             :persistence-type ::m/ref
-;                             :sub-entity       ::telephone}
-;                            {:id               ::emails
-;                             :spec             ::ref
-;                             :label            :email/emails
-;                             :cardinality      ::m/multiple
-;                             :description      "Email addresses of the client"
-;                             :persistence-type ::m/ref
-;                             :sub-entity       ::email}
-;                            {:id               ::identification
-;                             :spec             ::simple-string
-;                             :label            "Id"
-;                             :description      "The reference of the client's identification"
-;                             :cardinality      ::m/single
-;                             :persistence-type ::m/string
-;                             :identifies       true}
-;                            {:id               ::address
-;                             :spec             ::ref
-;                             :label            "Address"
-;                             :description      "A reference to multiple addresses in an entity"
-;                             :cardinality      ::m/multiple
-;                             :persistence-type ::m/ref
-;                             :sub-entity       ::address}
-;                            {:id               ::category
-;                             :spec             ::category
-;                             :label            "Category"
-;                             :description      "The category the client belongs to"
-;                             :cardinality      ::m/multiple
-;                             :persistence-type ::m/keyword}]}
-;                      {:id ::telephone
-;                       :attributes
-;                           [{:id               ::telephone-number
-;                             :persistence-type ::m/long
-;                             :spec             ::telephone-number-spec
-;                             :label            :telephone/number
-;                             :description      "The telephone number"
-;                             :required         true}
-;                            {:id               ::telephone-type
-;                             :persistence-type ::m/keyword
-;                             :spec             ::contact-channel-type-spec
-;                             :label            :telephone/type
-;                             :description      "The type of telephone (mobile, home, work, etc."
-;                             :required         true}]}
-;                      {:id ::email
-;                       :attributes
-;                           [{:id               ::email-address
-;                             :persistence-type ::m/string
-;                             :spec             ::e-mail-spec
-;                             :label            :email/email
-;                             :description      "The email of the client"
-;                             :required         true}
-;                            {:id               ::email-type
-;                             :persistence-type ::m/keyword
-;                             :spec             ::contact-channel-type-spec
-;                             :label            :email/type
-;                             :description      "The type of email (mobile, home, work, etc."
-;                             :required         false}]}
-;                      {:id ::address
-;                       :attributes
-;                           [{:id               ::address-descriptor
-;                             :persistence-type ::m/keyword
-;                             :spec             ::contact-channel-type-spec
-;                             :label            :address/type
-;                             :description      "Describes the type of address this is. For example it can be house address office address delivery address billing address etc."
-;                             :required         true}
-;                            {:id               ::address-lines
-;                             :persistence-type ::m/string
-;                             :spec             ::simple-string
-;                             :label            :address/line
-;                             :cardinality      ::m/multiple
-;                             :description      "Street and house number details of the address"}
-;                            {:id               ::city
-;                             :persistence-type ::m/string
-;                             :label            :address/city
-;                             :spec             ::simple-string
-;                             :description      "The city or district of the address"}
-;                            {:id               ::canton
-;                             :label            :address/canton
-;                             :spec             ::simple-string
-;                             :persistence-type ::m/string
-;                             :description      "The canton (or county) of the province"}
-;                            {:id               ::state-or-province
-;                             :persistence-type ::m/string
-;                             :spec             ::simple-string
-;                             :label            :address/state-or-province
-;                             :description      "The state or province of the address"}
-;                            {:id               ::postal-code
-;                             :label            :address/postal-code
-;                             :spec             ::simple-string
-;                             :persistence-type ::m/string
-;                             :description      "The postal code of the address"}
-;                            {:id               ::country
-;                             :persistence-type ::m/string
-;                             :spec             ::simple-string
-;                             :label            :address/country
-;                             :description      "The country of the address"
-;                             :required         true}
-;                            {:id               ::coordinates
-;                             :persistence-type ::m/ref
-;                             :spec             ::re
-;                             :label            :address/coordinates
-;                             :description      "The global coordinates of the address in a map"
-;                             :sub-entity       ::coordinates}]}
-;                      {:id ::coordinates
-;                       :attributes
-;                           [{:id               ::latitude
-;                             :persistence-type ::m/float
-;                             :label            :address/latitude
-;                             :spec             ::simple-float
-;                             :description      "The latitude of the location in the map in decimal degrees"
-;                             :required         true}
-;                            {:id               ::longitude
-;                             :persistence-type ::m/float
-;                             :label            :address/longitude
-;                             :spec             ::simple-float
-;                             :description      "The longitude of the location in the map in decimal degrees"
-;                             :required         true}]}]}
-;          test-entity {::first-name     "Esteban"
+;    (let [test-entity {::first-name     "Esteban"
 ;                       ::last-name      ["León" "Soto"]
 ;                       ::identification "24308978902341"
 ;                       ::telephones     [{::telephone-number 123784902318794321
@@ -641,6 +648,6 @@
 ;          ;                                         ::longitude -84.12367698123887}}]
 ;          ;::category       :compita}
 ;          not-passing-test-entity {::first-name "John"}]
-;          ;mandatroy-attributes-spec (m/mandatory-attributes-entity-spec (m/fetch-entity-model model ::client))]
-;      (is (s/valid? ::client-with-all-required-attributes test-entity)))))
-;(is (not (s/valid? ::client-with-all-required-attributes not-passing-test-entity))))))
+;      (m/mandatory-attributes-entity-spec (m/fetch-entity-model online-shop-model ::client))
+;      (is (s/valid? ::client-with-all-required-attributes test-entity))
+;      (is (not (s/valid? ::client-with-all-required-attributes not-passing-test-entity))))))
