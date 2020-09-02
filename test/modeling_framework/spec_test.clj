@@ -485,6 +485,37 @@
         (is (s/valid? ::main-entity-rec-test-with-all-required-attributes good-value))
         (is (not (s/valid? ::main-entity-rec-test-with-all-required-attributes bad-value)))))))
 
+
+;(def test-model
+;  {:id       :modeling-framework.spec/sub-entity-test-model,
+;   :entities [{:id         :modeling-framework.spec/main-entity-rec-test,
+;               :attributes [{:id               :modeling-framework.spec/entity-id,
+;                             :label            "Id",
+;                             :persistence-type :modeling-framework.spec/string}
+;                            {:id               :modeling-framework.spec/sub-entity-entry,
+;                             :label            "Sub-entity",
+;                             :persistence-type :modeling-framework.spec/ref,
+;                             :sub-entity       :modeling-framework.spec/sub-entity-rec-test,
+;                             :required         true}
+;                            {:id               :modeling-framework.spec/sub-entity-entry-2,
+;                             :label            "Sub-entity-2",
+;                             :persistence-type :modeling-framework.spec/ref,
+;                             :sub-entity       :modeling-framework.spec/sub-entity-rec-2-test,
+;                             :required         true}]}
+;              {:id         :modeling-framework.spec/sub-entity-rec-test,
+;               :attributes [{:id               :modeling-framework.spec/sub-entity-1-id,
+;                             :label            "Sub Entity 1 Id",
+;                             :persistence-type :modeling-framework.spec/string,
+;                             :required         true}]}
+;              {:id         :modeling-framework.spec/sub-entity-rec-2-test,
+;               :attributes [{:id               :modeling-framework.spec/sub-entity-2-id,
+;                             :label            "Sub Entity 2 Id",
+;                             :persistence-type :modeling-framework.spec/string,
+;                             :required         true}]}]})
+;
+;(deftest test-model-required-specs-declaration
+;  (let [result ()]))
+
 (def online-shop-model
   {:id ::data-model
    :entities

@@ -97,7 +97,7 @@
        (filter #(= entity-key (:id %)))
        (first)))
 
-(defn mandatory-attributes [entity-model]
+(defn required-attributes [entity-model]
   (->> entity-model
        (:attributes)
        (filter :required)
@@ -112,7 +112,7 @@
 (defn- sub-entities [entity-model]
   (->> entity-model
        (:attributes)
-       (map #(vector (:id %)(:sub-entity %)))
+       (map #(vector (:id %) (:sub-entity %)))
        (filter #(not (nil? (second %))))
        (vec)))
 
@@ -129,12 +129,13 @@
                 (name sub-entity-id)
                 "-with-all-required-attributes")))
 
+(def required-attributes-spec-name-suffix "-with-all-required-attributes")
+
 (defmacro mandatory-attributes-entity-spec [entity-model-symbol]
   (let [entity-model (eval entity-model-symbol)
         sub-entities (sub-entities entity-model)
-        mandatory-attributes-spec-name-suffix "-with-all-required-attributes"
         entity-id (get-id-or-complain entity-model)
-        spec-id (spec-keyword entity-id mandatory-attributes-spec-name-suffix)]
+        spec-id (spec-keyword entity-id required-attributes-spec-name-suffix)]
 
     `(do
        ~(->> sub-entities
@@ -147,27 +148,122 @@
                            (let [~sub-entity-value-param (~field-name ~entity-param)]
                              (if (nil? ~sub-entity-value-param)
                                true
-                               (s/valid? ~(spec-keyword sub-entity-id mandatory-attributes-spec-name-suffix)
+                               (s/valid? ~(spec-keyword sub-entity-id required-attributes-spec-name-suffix)
                                          ~sub-entity-value-param))))))))
              (cons `do))
        ~(if (empty? sub-entities)
-          `(s/def ~spec-id (s/keys :req ~(mandatory-attributes entity-model)))
+          `(s/def ~spec-id (s/keys :req ~(required-attributes entity-model)))
           `(s/def ~spec-id
              ~(->> sub-entities
                    (map second)
                    (map #(has-sub-with-all-required-atts-keyword entity-id %))
-                   (cons `(s/keys :req ~(mandatory-attributes entity-model)))
+                   (cons `(s/keys :req ~(required-attributes entity-model)))
                    (cons `s/and)))))))
+
+(defn decorate-keyword [k pre post]
+  "Returns a keyword decorated with given prefix and suffix (post) around the
+  name part of the keyword, leaving the namespace part untouched"
+  (keyword (namespace k)
+           (str (or pre "")
+                (name k)
+                (or post ""))))
+
+(defmacro register-spec!
+  "Registers a spec with the given spec key and the corresponding spec body
+  in the registry. This can be used to register specs whose name will be
+  calculated at runtime."
+  [spec-key body]
+  (let [spec-key-value (eval spec-key)]
+    `(s/def ~spec-key-value ~body)))
+
+(defmacro entity-required-attributes-spec [entity]
+  (let [sub-entities-param (gensym "sub-entities-")
+        ;sub-entity-param (gensym "sub-entity-")
+        sub-entities (sub-entities (eval entity))
+        required-attributes-param (gensym "required-attributes-")
+        all-sub-entities-kw-param (gensym "sub-entities-kws-")
+        required-attributes-spec-name-param (gensym "required-atts-")]
+    `(let [~all-sub-entities-kw-param (has-sub-with-all-required-atts-keyword (:id ~entity) ::sub-ent)
+           ~required-attributes-param (required-attributes ~entity)]
+       (register-spec!
+         (spec-keyword (:id ~entity) required-attributes-spec-name-suffix)
+         (s/and
+           (s/keys :req (vector ~required-attributes-param))
+           ~(cons 's/and
+                  (for [sub-entity sub-entities]
+                    (first sub-entity))))))))
+
+
+(defn has-all-required-attributes-kw [entity-id]
+  (decorate-keyword entity-id nil required-attributes-spec-name-suffix))
+
+(defn entity-has-sub-entity-entry-with-all-required-attributes-kw [entity-id sub-entity-entry]
+  (decorate-keyword entity-id nil (str "-has-" (name sub-entity-entry) "-with-all-required-attributes")))
+
 
 (defmacro mandatory-attributes-model-spec
   "Registers all mandatory attributes specs related to entities in this model"
   [model]
-  (->> model
-       (eval)
-       (:entities)
-       (map (fn [entity-model]
-              `(mandatory-attributes-entity-spec ~entity-model)))
-       (cons 'do)))
+  (let [entities (->> model
+                      (eval)
+                      (:entities))]
+    (concat
+      `(do)
+      (->> entities
+           (map (fn [entity-model]
+                  (let [entity-id (:id entity-model)
+                        sub-entities-entries (->> entity-model
+                                                  (sub-entities)
+                                                  (map first))]
+                    (concat
+                      [`(s/def
+                          ~(has-all-required-attributes-kw entity-id)
+                          true)]
+                      (->> sub-entities-entries
+                           (map (fn [sub-entity-entry]
+                                  `(s/def ~(entity-has-sub-entity-entry-with-all-required-attributes-kw entity-id sub-entity-entry) true))))))))
+           (apply concat))
+      (->> entities
+           (map (fn [entity-model]
+                  (let [entity-id (:id entity-model)
+                        required-attributes (required-attributes entity-model)
+                        sub-entities-entries (->> entity-model
+                                                  (sub-entities)
+                                                  (map first))]
+                    `(s/def
+                       ~(has-all-required-attributes-kw entity-id)
+                       ~(->> sub-entities-entries
+                             (map (fn [sub-entity-entry]
+                                    (entity-has-sub-entity-entry-with-all-required-attributes-kw entity-id sub-entity-entry)))
+                             (cons `(s/keys :req ~required-attributes))
+                             (cons `s/and)))))))
+      (->> entities
+           (map (fn [entity-model]
+                  (let [entity-param (gensym "entity-param-")
+                        entity-id (:id entity-model)
+                        sub-entities (->> entity-model
+                                          (sub-entities))]
+                    (->> sub-entities
+                         (map (fn [[sub-entity-entry sub-entity-id]]
+                                `(s/def ~(entity-has-sub-entity-entry-with-all-required-attributes-kw entity-id sub-entity-entry)
+                                   (fn [~entity-param]
+                                     (if (nil? (get ~entity-param ~sub-entity-entry))
+                                       true
+                                       (s/valid?
+                                         ~(has-all-required-attributes-kw sub-entity-id)
+                                         (get ~entity-param ~sub-entity-entry)))))))))))
+           (filter #(not (empty? %)))))))
+
+
+
+
+
+(defmacro model-required-attributes-spec
+  "Registers specs for all mandatory attribuets in the entities in the provided model"
+  [model]
+  (let [entity-param (gensym "entity-")]
+    `(for [~entity-param (:entities ~model)]
+       (entity-required-attributes-spec ~entity-param))))
 
 (defn single-element-correct-type [attribute-model entity]
   (= (type (entity (:id attribute-model)))
