@@ -209,7 +209,7 @@
 
 (deftest entity-spec-test
   (do
-    (m/mandatory-attributes-model-spec entity-spec-test-model)
+    (m/required-attributes-model-spec entity-spec-test-model)
     (testing
       "A valid model must pass the spec"
       (is (s/valid?
@@ -329,7 +329,7 @@
         test-client-bad {::first-name "Mary"}]
 
     (do
-      (m/mandatory-attributes-entity-spec (m/fetch-entity-model test-required-attribute-spec-model ::client))
+      (m/required-attributes-model-spec test-required-attribute-spec-model)
       (testing
         "The spec for client model must have been created"
         (is (contains? (s/registry) ::client-with-all-required-attributes)))
@@ -459,31 +459,53 @@
                                                [{:id               ::entity-id
                                                  :label            "Id"
                                                  :persistence-type ::m/string}
-                                                {:id               ::sub-entity-entry
-                                                 :label            "Sub-entity"
+                                                {:id               ::sub-entity-1-entry
+                                                 :label            "Sub-entity-1"
                                                  :persistence-type ::m/ref
-                                                 :sub-entity       ::sub-entity-rec-test
+                                                 :sub-entity       ::sub-entity-1-rec-test
+                                                 :required         true}
+                                                {:id               ::sub-entity-2-entry
+                                                 :label            "Sub-entity-2"
+                                                 :persistence-type ::m/ref
+                                                 :sub-entity       ::sub-entity-2-rec-test
                                                  :required         true}]}
-                                          {:id ::sub-entity-rec-test
+                                          {:id ::sub-entity-1-rec-test
                                            :attributes
-                                               [{:id               ::sub-entity-id
-                                                 :label            "Sub Entity Id"
+                                               [{:id               ::sub-entity-1-id
+                                                 :label            "Sub Entity Id 1"
+                                                 :persistence-type ::m/string
+                                                 :required         true}]}
+                                          {:id ::sub-entity-2-rec-test
+                                           :attributes
+                                               [{:id               ::sub-entity-2-id
+                                                 :label            "Sub Entity Id 2"
                                                  :persistence-type ::m/string
                                                  :required         true}]}]})
 
 (deftest mandatory-spec-recursive
   (testing
+    "Mandatory attributes for nil model"
+    (is (nil? (m/required-attributes-model-spec nil))))
+  (testing
     "Spec validation must call validation for its sub-entity"
     (do
-      (m/mandatory-attributes-model-spec mandatory-spec-recursive-model)
+      (m/required-attributes-model-spec mandatory-spec-recursive-model)
       (let [good-value {::entity-id "test-entity-1"
-                        ::sub-entity-entry
-                                    {::sub-entity-id "sub-entity-1"}}
+                        ::sub-entity-1-entry
+                                    {::sub-entity-1-id "sub-entity-1"}
+                        ::sub-entity-2-entry
+                                    {::sub-entity-2-id "sub-entity-2"}}
             bad-value {::entity-id "test-entity-2"
-                       ::sub-entity-entry
-                                   {::wrong-key 3}}]
+                       ::sub-entity-1-entry
+                                   {::wrong-key 3}
+                       ::sub-entity-2-entry
+                                   {::sub-entity-2-id "sub-entity-2"}}
+            sub-entity-missing {::entity-id "test-entity-2"
+                                ::sub-entity-2-entry
+                                            {::sub-entity-2-id "sub-entity-2"}}]
         (is (s/valid? ::main-entity-rec-test-with-all-required-attributes good-value))
-        (is (not (s/valid? ::main-entity-rec-test-with-all-required-attributes bad-value)))))))
+        (is (not (s/valid? ::main-entity-rec-test-with-all-required-attributes bad-value)))
+        (is (not (s/valid? ::main-entity-rec-test-with-all-required-attributes sub-entity-missing)))))))
 
 
 ;(def test-model
