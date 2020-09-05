@@ -258,7 +258,8 @@
 (defn attribute-model [attribute-id entity-model]
   (->> entity-model
        (:attributes)
-       (filter #(= attribute-id (:id %)))))
+       (filter #(= attribute-id (:id %)))
+       (first)))
 
 (defmacro register-correct-types-specs
   "Registers all correct-types specs"
@@ -327,6 +328,106 @@
                                          (~sub-entity-entry ~entity-param)))))))))))
            (filter #(not (empty? %)))))))
 
+(defn has-all-attributes-valid-kw [entity-id]
+  (decorate-keyword entity-id nil "-with-attributes-valid"))
+
+(defn entity-has-sub-entity-entry-with-attributes-valid-kw [entity-id sub-entity-entry]
+  (decorate-keyword entity-id nil (str "-has-" (name sub-entity-entry) "-with-all-attributes-valid")))
+
+(defn entity-has-attribute-valid-kw [entity-id attribute-id]
+  (decorate-keyword entity-id nil (str "-has-" (name attribute-id) "-valid")))
+
+(defn collection-elements-valid [attribute-model entity]
+  (let [attribute-value (entity (:id attribute-model))
+        the-spec (attribute-model :spec)]
+    (or (nil? the-spec)
+        (and (coll? attribute-value)
+             (every?
+               #(s/valid? the-spec %)
+               attribute-value)))))
+
+(defn single-element-valid [attribute-model entity]
+  (let [attribute-spec (attribute-model :spec)]
+    (or (nil? attribute-spec)
+        (s/valid?
+          attribute-spec
+          (entity (:id attribute-model))))))
+
+(defn attribute-valid-predicate [attribute-model]
+  (fn [entity]
+    (or (not (contains? entity (:id attribute-model)))
+        (if (= (attribute-model :cardinality) ::multiple)
+          (collection-elements-valid attribute-model entity)
+          (single-element-valid attribute-model entity)))))
+
+(defmacro register-attributes-valid-specs
+  "Registers all attributes valid specs"
+  [model]
+  (let [entities (->> model
+                      (eval)
+                      (:entities))]
+    (concat
+      `(do)
+      (->> entities
+           (map (fn [entity-model]
+                  (let [entity-id (:id entity-model)
+                        sub-entities-entries (->> entity-model
+                                                  (sub-entities)
+                                                  (map first))
+                        simple-attributes (non-subentity-attributes entity-model)]
+                    (concat
+                      [`(s/def
+                          ~(has-all-attributes-valid-kw entity-id)
+                          true)]
+                      (->> sub-entities-entries
+                           (map (fn [sub-entity-entry]
+                                  `(s/def ~(entity-has-sub-entity-entry-with-attributes-valid-kw entity-id sub-entity-entry) true))))
+                      (->> simple-attributes
+                           (map (fn [attribute]
+                                  `(s/def ~(entity-has-attribute-valid-kw entity-id attribute) true))))))))
+           (apply concat))
+      (->> entities
+           (map (fn [entity-model]
+                  (let [entity-id (:id entity-model)
+                        attributes (attribute-ids entity-model)
+                        sub-entities-entries (->> entity-model
+                                                  (sub-entities)
+                                                  (map first)
+                                                  (set))]
+                    `(s/def
+                       ~(has-all-attributes-valid-kw entity-id)
+                       ~(->> attributes
+                             (map (fn [attribute]
+                                    (if (contains? sub-entities-entries attribute)
+                                      (entity-has-sub-entity-entry-with-attributes-valid-kw entity-id attribute)
+                                      (entity-has-attribute-valid-kw entity-id attribute))))
+                             (cons `s/and)))))))
+      (->> entities
+           (map (fn [entity-model]
+                  (let [entity-id (:id entity-model)
+                        simple-attributes (non-subentity-attributes entity-model)]
+                    (->> simple-attributes
+                         (map (fn [attribute]
+                                `(s/def
+                                   ~(entity-has-attribute-valid-kw entity-id attribute)
+                                   (attribute-valid-predicate ~(attribute-model attribute entity-model)))))))))
+           (apply concat))
+      (->> entities
+           (map (fn [entity-model]
+                  (let [entity-id (:id entity-model)
+                        sub-entities (sub-entities entity-model)]
+                    (->> sub-entities
+                         (map (fn [[sub-entity-entry sub-entity-id]]
+                                (let [entity-param (gensym "entity-")]
+                                  `(s/def
+                                     ~(entity-has-sub-entity-entry-with-attributes-valid-kw entity-id sub-entity-entry)
+                                     (fn [~entity-param]
+                                       (s/valid?
+                                         ~(has-all-attributes-valid-kw sub-entity-id)
+                                         (~sub-entity-entry ~entity-param)))))))))))
+           (filter #(not (empty? %)))
+           (apply concat)))))
+
 
 
 ;; Candidate for deleting
@@ -380,7 +481,4 @@
         entity-var (gensym "entity-var-")]
     `(do
        (required-attributes-model-spec ~model)
-       (for [~entity-var (::entities ~model)]
-         (do
-           (valid-value-types-spec ~entity-var)
-           (all-attributes-valid-spec ~entity-var))))))
+       (register-attributes-valid-specs ~model))))
