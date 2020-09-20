@@ -132,8 +132,6 @@
              (map #(s/valid? ::m/attribute %))
              (every? false?)))))
 
-
-
 (deftest test-entity
   (testing
     "An entity must have a name and at least one attribute"
@@ -153,7 +151,7 @@
 
 (deftest test-model
   (testing
-    "A model must have at least 1 entity"
+    "A model must have at least 1 entity and and :id"
     (is (not (s/valid? ::m/model
                        {})))
     (is (s/valid? ::m/model
@@ -167,7 +165,18 @@
                                              :label            "Mandatory Attribute"
                                              :spec             :something
                                              :persistence-type ::m/string
-                                             :required         true}]}]}))))
+                                             :required         true}]}]}))
+    (is (not (s/valid? ::m/model
+                       {:entities [{:id         ::test-entity
+                                    :attributes [{:id               ::test-attribute
+                                                  :label            "Test Attribute"
+                                                  :spec             :something
+                                                  :persistence-type ::m/instant}
+                                                 {:id               ::test-attribute-mandatory
+                                                  :label            "Mandatory Attribute"
+                                                  :spec             :something
+                                                  :persistence-type ::m/string
+                                                  :required         true}]}]})))))
 
 (deftest fetch-entity-model-test
   (let [model {:id       :model-name
@@ -207,9 +216,9 @@
                              :persistence-type :m/string
                              :required         true}]}]})
 
-(deftest entity-spec-test
+(deftest simple-entity-required-attributes-spec-test
   (do
-    (m/required-attributes-model-spec entity-spec-test-model)
+    (m/register-attributes-required-specs entity-spec-test-model)
     (testing
       "A valid model must pass the spec"
       (is (s/valid?
@@ -218,22 +227,26 @@
              ::test-attribute-mandatory   "Hi"
              ::test-attribute-mandatory-2 "Yes"})))
     (testing
-      "An entity cannot pass the spec if it is missing a required field"
+      "An entity cannot pass the spec if it is missing a required field
+      (::test-attribute-mandatory-2)"
       (is (not (s/valid? ::test-entity-with-all-required-attributes
-                         {:test-attribute           (Instant/now)
-                          :test-attribute-mandatory "Hi"}))))
+                         {::test-attribute           (Instant/now)
+                          ::test-attribute-mandatory "Hi"}))))
     (testing
-      "An entity cannot pass the spec if it has an attribute with the wrong type"
-      (is (not (s/valid? ::test-entity-with-all-required-attributes
-                         {:test-attribute             (Instant/now)
-                          :test-attribute-mandatory   "Hi",
-                          :test-attribute-mandatory-2 2}))))
+      "An entity can pass the spec if it has an attribute with the wrong type,
+      because this spec is not about that"
+      (is (s/valid? ::test-entity-with-all-required-attributes
+                    {::test-attribute             (Instant/now)
+                     ::test-attribute-mandatory   "Hi"
+                     ::test-attribute-mandatory-2 1})))
     (testing
-      "An entity cannot pass the spec if an attribute has a value that does not pass the attribute's spec"
-      (is (not (s/valid? ::test-entity-with-all-required-attributes
-                         {:test-attribute             (Instant/now)
-                          :test-attribute-mandatory   "This value is too long and does not pass the spec"
-                          :test-attribute-mandatory-2 "Yes"}))))))
+      "An entity can pass the spec if an attribute has a value that does
+       not pass the attribute's spec, because required attributes specs
+       are not about that"
+      (is (s/valid? ::test-entity-with-all-required-attributes
+                    {::test-attribute             (Instant/now)
+                     ::test-attribute-mandatory   "This value is too long and does not pass the spec"
+                     ::test-attribute-mandatory-2 "Yes"})))))
 
 (deftest sub-entity-test
   (testing
@@ -275,29 +288,29 @@
       (is (not (s/valid? ::m/model invalid-model))))))
 
 
-(s/def ::simple-string string?)
-(s/def ::vector-of-strings (s/and #(= (type %) (type []))
-                                  (s/coll-of string?)))
-(s/def ::simple-float float?)
-(s/def ::telephone-number-spec pos-int?)
-(s/def ::ref keyword?)
-(s/def ::category #(contains?
-                     #{:normal
-                       :whole-seller
-                       :compita} %))
-
-(def contact-channel-types
-  #{:home
-    :mobile
-    :work
-    :fax})
-
-(s/def ::contact-channel-type-spec
-  (s/and keyword?
-         #(contains? contact-channel-types %)))
-
-(def email-regex #"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
-(s/def ::e-mail-spec #(re-matches email-regex %))
+;(s/def ::simple-string string?)
+;(s/def ::vector-of-strings (s/and #(= (type %) (type []))
+;                                  (s/coll-of string?)))
+;(s/def ::simple-float float?)
+;(s/def ::telephone-number-spec pos-int?)
+;(s/def ::ref keyword?)
+;(s/def ::category #(contains?
+;                     #{:normal
+;                       :whole-seller
+;                       :compita} %))
+;
+;(def contact-channel-types
+;  #{:home
+;    :mobile
+;    :work
+;    :fax})
+;
+;(s/def ::contact-channel-type-spec
+;  (s/and keyword?
+;         #(contains? contact-channel-types %)))
+;
+;(def email-regex #"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
+;(s/def ::e-mail-spec #(re-matches email-regex %))
 
 (def test-required-attribute-spec-model
   {:id ::data-model
@@ -329,7 +342,7 @@
         test-client-bad {::first-name "Mary"}]
 
     (do
-      (m/required-attributes-model-spec test-required-attribute-spec-model)
+      (m/register-attributes-required-specs test-required-attribute-spec-model)
       (testing
         "The spec for client model must have been created"
         (is (contains? (s/registry) ::client-with-all-required-attributes)))
@@ -340,117 +353,64 @@
                        test-client-good)]
           (is (nil? result))))
       (testing
-        "A bad entity is rejected by the required attributes spec"
+        "A bad entity is rejected by the required attributes spec, the
+         explanation mentions the field causing the issue"
         (let [result
               (s/explain-data
                 ::client-with-all-required-attributes
                 test-client-bad)]
-          (is (not (nil? result))))))))
+          (is (clojure.string/ends-with?
+                (->> result
+                     ::s/problems
+                     first
+                     :pred
+                     str)
+                ":modeling-framework.spec-test/last-name))")))))))
 
-(deftest test-attribute-correct-type-predicate
-  (let [test-model {:id               ::last-name
-                    :spec             ::vector-of-strings
-                    :label            "Last-name"
-                    :cardinality      ::m/multiple
-                    :description      "The last names of the client"
-                    :persistence-type ::m/string
-                    :required         true}
-        test-client-good {::last-name ["Doe" "Windsor"]}
-        test-client-bad-content {::last-name [1 2]}
-        test-client-bad-no-collection {::last-name "Doe"}
-        correct-type? (m/attribute-correct-type-predicate test-model)]
-    (testing
-      "True for matching type inside a collection for attributes with cardinality multiple"
-      (is (correct-type? test-client-good)))
-    (testing
-      "False if the collection is of a different type then persistence-type"
-      (is (not (correct-type? test-client-bad-content))))
-    (testing
-      "False if value is not a collection"
-      (is (not (correct-type? test-client-bad-no-collection))))))
+(def sub-entity-single-and-multiple-cardinality-required-model
+  {:id ::sub-entity-single-and-multiple-cardinality-model
+   :entities
+       [{:id ::main-entity
+         :attributes
+             [{:id               ::sub-entity-single-entry
+               :label            "Sub-entity-single"
+               :persistence-type ::m/ref
+               :sub-entity       ::sub-entity-single-entity
+               :required         true}
+              {:id               ::sub-entity-multiple-entry
+               :label            "Sub-entity-multiple"
+               :persistence-type ::m/ref
+               :sub-entity       ::sub-entity-multiple-entity
+               :cardinality      ::m/multiple
+               :required         true}]}
+        {:id ::sub-entity-single-entity
+         :attributes
+             [{:id               ::sub-entity-single-value
+               :label            "Single"
+               :persistence-type ::m/string
+               :required         true}]}
+        {:id ::sub-entity-multiple-entity
+         :attributes
+             [{:id               ::sub-entity-multiple-value
+               :label            "Multiple"
+               :persistence-type ::m/string
+               :required         true}]}]})
 
+(deftest sub-entity-multiple-cardinality-test
+  (let [good-entity {::sub-entity-single-entry   {::sub-entity-single-value "single!"}
+                     ::sub-entity-multiple-entry [{::sub-entity-multiple-value "multiple 1"}
+                                                  {::sub-entity-multiple-value "multiple 2"}]}
+        missing-element-in-sub-entity-single {::sub-entity-single-entry   {::this-is-a-wrong-key "single!"}
+                                              ::sub-entity-multiple-entry [{::sub-entity-multiple-value "multiple 1"}
+                                                                           {::sub-entity-multiple-value "multiple 2"}]}]
+    (m/register-attributes-required-specs sub-entity-single-and-multiple-cardinality-required-model)
+    (testing
+      "If sub-entity has cardinality multiple, the required fields spec must be applied
+      on the elements of the collection (and not on the the collection)"
+      ;(clojure.pprint/pprint(s/explain-data :modeling-framework.spec-test/main-entity-with-all-required-attributes good-entity))
+      (is (s/valid? :modeling-framework.spec-test/main-entity-with-all-required-attributes good-entity))
+      (is (not (s/valid? :modeling-framework.spec-test/main-entity-with-all-required-attributes missing-element-in-sub-entity-single))))))
 
-(deftest test-valid-type-with-attributes-cardinality-multiple-spec
-  (let [test-model {:id ::client
-                    :attributes
-                        [{:id               ::last-name
-                          :spec             ::vector-of-strings
-                          :label            "Last-name"
-                          :cardinality      ::m/multiple
-                          :description      "The last names of the client"
-                          :persistence-type ::m/string
-                          :required         true}]}
-        test-client-good {::last-name ["Doe" "Windsor"]}
-        test-client-bad {::last-name "Doe"}
-        spec-for-fields (m/valid-value-types-spec test-model)]
-    (testing
-      "A vector with values must pass the the valid types specs"
-      (do
-        (clojure.pprint/pprint (s/explain-data spec-for-fields test-client-good))
-        (is (s/valid? spec-for-fields test-client-good))))
-    (testing
-      "A single value (not in a collection) cannot pass the valid types specs"
-      (is (not (s/valid? spec-for-fields test-client-bad))))))
-
-(deftest test-valid-value-type-predicate
-  (let [predicate (m/attribute-correct-type-predicate {:id               ::first-name
-                                                       :spec             ::simple-string
-                                                       :label            "First-name"
-                                                       :description      "The first name of the client"
-                                                       :persistence-type ::m/string})]
-    (testing
-      "Created predicate returns true if attribute has type specified in attribute model"
-      (is (predicate {::first-name "John"})))
-    (testing
-      "Created predicate returns false if attribute has different type as specified in attribute model"
-      (is (not (predicate {::first-name 2}))))))
-
-(deftest test-create-valid-type-values-spec-for-simple-primitives
-  (let [model {:id ::client
-               :attributes
-                   [{:id               ::first-name
-                     :spec             ::simple-string
-                     :label            "First-name"
-                     :description      "The first name of the client"
-                     :persistence-type ::m/string}]}
-        good-entity {::first-name "John"}
-        wrong-entity {::first-name 1}
-        valid-value-types-spec (m/valid-value-types-spec model)]
-    (testing
-      "Creates always a spec"
-      (is (not (nil? valid-value-types-spec))))
-    (testing
-      "Entities with correct types pass spec"
-      (is (s/valid? valid-value-types-spec good-entity)))
-    (testing
-      "Entities with wrong type fail the spec"
-      (is (not (s/valid? valid-value-types-spec wrong-entity))))))
-
-(deftest test-attributes-spec-to-entity-spec
-  (let [model {:id ::client
-               :attributes
-                   [{:id               ::first-name
-                     :spec             ::simple-string
-                     :label            "First-name"
-                     :description      "The first name of the client"
-                     :persistence-type ::m/string}
-                    {:id               ::last-name
-                     :spec             ::vector-of-strings
-                     :label            "Last-name"
-                     :cardinality      ::m/multiple
-                     :description      "The last names of the client"
-                     :persistence-type ::m/string}
-                    {:id               ::unspec-ed
-                     :cardinality      ::m/multiple
-                     :persistence-type ::m/string}]}
-        test-entity-good {::first-name "John"
-                          ::last-name  ["Doe" "Smith"]}
-        test-entity-bad {::first-name 4
-                         ::last-name  #{"Doe" "Smith"}}
-        entity-attributes-spec (m/all-attributes-valid-spec model)]
-    (is (not (nil? entity-attributes-spec)))
-    (is (s/valid? entity-attributes-spec test-entity-good))
-    (is (not (s/valid? entity-attributes-spec test-entity-bad)))))
 
 (def mandatory-spec-recursive-model {:id ::sub-entity-test-model
                                      :entities
@@ -485,11 +445,11 @@
 (deftest mandatory-spec-recursive
   (testing
     "Mandatory attributes for nil model"
-    (is (nil? (m/required-attributes-model-spec nil))))
+    (is (nil? (m/register-attributes-required-specs nil))))
   (testing
     "Spec validation must call validation for its sub-entity"
     (do
-      (m/required-attributes-model-spec mandatory-spec-recursive-model)
+      (m/register-attributes-required-specs mandatory-spec-recursive-model)
       (let [good-value {::entity-id "test-entity-1"
                         ::sub-entity-1-entry
                                     {::sub-entity-1-id "sub-entity-1"}
@@ -507,36 +467,140 @@
         (is (not (s/valid? ::main-entity-rec-test-with-all-required-attributes bad-value)))
         (is (not (s/valid? ::main-entity-rec-test-with-all-required-attributes sub-entity-missing)))))))
 
-
-;(def test-model
-;  {:id       :modeling-framework.spec/sub-entity-test-model,
-;   :entities [{:id         :modeling-framework.spec/main-entity-rec-test,
-;               :attributes [{:id               :modeling-framework.spec/entity-id,
-;                             :label            "Id",
-;                             :persistence-type :modeling-framework.spec/string}
-;                            {:id               :modeling-framework.spec/sub-entity-entry,
-;                             :label            "Sub-entity",
-;                             :persistence-type :modeling-framework.spec/ref,
-;                             :sub-entity       :modeling-framework.spec/sub-entity-rec-test,
-;                             :required         true}
-;                            {:id               :modeling-framework.spec/sub-entity-entry-2,
-;                             :label            "Sub-entity-2",
-;                             :persistence-type :modeling-framework.spec/ref,
-;                             :sub-entity       :modeling-framework.spec/sub-entity-rec-2-test,
-;                             :required         true}]}
-;              {:id         :modeling-framework.spec/sub-entity-rec-test,
-;               :attributes [{:id               :modeling-framework.spec/sub-entity-1-id,
-;                             :label            "Sub Entity 1 Id",
-;                             :persistence-type :modeling-framework.spec/string,
-;                             :required         true}]}
-;              {:id         :modeling-framework.spec/sub-entity-rec-2-test,
-;               :attributes [{:id               :modeling-framework.spec/sub-entity-2-id,
-;                             :label            "Sub Entity 2 Id",
-;                             :persistence-type :modeling-framework.spec/string,
-;                             :required         true}]}]})
+;(deftest test-attribute-correct-type-predicate
+;  (let [test-model {:id               ::last-name
+;                    :spec             ::vector-of-strings
+;                    :label            "Last-name"
+;                    :cardinality      ::m/multiple
+;                    :description      "The last names of the client"
+;                    :persistence-type ::m/string
+;                    :required         true}
+;        test-client-good {::last-name ["Doe" "Windsor"]}
+;        test-client-bad-content {::last-name [1 2]}
+;        test-client-bad-no-collection {::last-name "Doe"}
+;        correct-type? (m/attribute-correct-type-predicate test-model)]
+;    (testing
+;      "True for matching type inside a collection for attributes with cardinality multiple"
+;      (is (correct-type? test-client-good)))
+;    (testing
+;      "False if the collection is of a different type then persistence-type"
+;      (is (not (correct-type? test-client-bad-content))))
+;    (testing
+;      "False if value is not a collection"
+;      (is (not (correct-type? test-client-bad-no-collection))))))
 ;
-;(deftest test-model-required-specs-declaration
-;  (let [result ()]))
+;
+;(deftest test-valid-type-with-attributes-cardinality-multiple-spec
+;  (let [test-model {:id ::client
+;                    :attributes
+;                        [{:id               ::last-name
+;                          :spec             ::vector-of-strings
+;                          :label            "Last-name"
+;                          :cardinality      ::m/multiple
+;                          :description      "The last names of the client"
+;                          :persistence-type ::m/string
+;                          :required         true}]}
+;        test-client-good {::last-name ["Doe" "Windsor"]}
+;        test-client-bad {::last-name "Doe"}
+;        spec-for-fields (m/valid-value-types-spec test-model)]
+;    (testing
+;      "A vector with values must pass the the valid types specs"
+;      (do
+;        (clojure.pprint/pprint (s/explain-data spec-for-fields test-client-good))
+;        (is (s/valid? spec-for-fields test-client-good))))
+;    (testing
+;      "A single value (not in a collection) cannot pass the valid types specs"
+;      (is (not (s/valid? spec-for-fields test-client-bad))))))
+;
+;(deftest test-valid-value-type-predicate
+;  (let [predicate (m/attribute-correct-type-predicate {:id               ::first-name
+;                                                       :spec             ::simple-string
+;                                                       :label            "First-name"
+;                                                       :description      "The first name of the client"
+;                                                       :persistence-type ::m/string})]
+;    (testing
+;      "Created predicate returns true if attribute has type specified in attribute model"
+;      (is (predicate {::first-name "John"})))
+;    (testing
+;      "Created predicate returns false if attribute has different type as specified in attribute model"
+;      (is (not (predicate {::first-name 2}))))))
+;
+;(deftest test-create-valid-type-values-spec-for-simple-primitives
+;  (let [model {:id ::client
+;               :attributes
+;                   [{:id               ::first-name
+;                     :spec             ::simple-string
+;                     :label            "First-name"
+;                     :description      "The first name of the client"
+;                     :persistence-type ::m/string}]}
+;        good-entity {::first-name "John"}
+;        wrong-entity {::first-name 1}
+;        valid-value-types-spec (m/valid-value-types-spec model)]
+;    (testing
+;      "Creates always a spec"
+;      (is (not (nil? valid-value-types-spec))))
+;    (testing
+;      "Entities with correct types pass spec"
+;      (is (s/valid? valid-value-types-spec good-entity)))
+;    (testing
+;      "Entities with wrong type fail the spec"
+;      (is (not (s/valid? valid-value-types-spec wrong-entity))))))
+
+;(deftest test-attributes-spec-to-entity-spec
+;  (let [model {:id ::client
+;               :attributes
+;                   [{:id               ::first-name
+;                     :spec             ::simple-string
+;                     :label            "First-name"
+;                     :description      "The first name of the client"
+;                     :persistence-type ::m/string}
+;                    {:id               ::last-name
+;                     :spec             ::vector-of-strings
+;                     :label            "Last-name"
+;                     :cardinality      ::m/multiple
+;                     :description      "The last names of the client"
+;                     :persistence-type ::m/string}
+;                    {:id               ::unspec-ed
+;                     :cardinality      ::m/multiple
+;                     :persistence-type ::m/string}]}
+;        test-entity-good {::first-name "John"
+;                          ::last-name  ["Doe" "Smith"]}
+;        test-entity-bad {::first-name 4
+;                         ::last-name  #{"Doe" "Smith"}}
+;        entity-attributes-spec (m/all-attributes-valid-spec model)]
+;    (is (not (nil? entity-attributes-spec)))
+;    (is (s/valid? entity-attributes-spec test-entity-good))
+;    (is (not (s/valid? entity-attributes-spec test-entity-bad)))))
+
+;;(def test-model
+;;  {:id       :modeling-framework.spec/sub-entity-test-model,
+;;   :entities [{:id         :modeling-framework.spec/main-entity-rec-test,
+;;               :attributes [{:id               :modeling-framework.spec/entity-id,
+;;                             :label            "Id",
+;;                             :persistence-type :modeling-framework.spec/string}
+;;                            {:id               :modeling-framework.spec/sub-entity-entry,
+;;                             :label            "Sub-entity",
+;;                             :persistence-type :modeling-framework.spec/ref,
+;;                             :sub-entity       :modeling-framework.spec/sub-entity-rec-test,
+;;                             :required         true}
+;;                            {:id               :modeling-framework.spec/sub-entity-entry-2,
+;;                             :label            "Sub-entity-2",
+;;                             :persistence-type :modeling-framework.spec/ref,
+;;                             :sub-entity       :modeling-framework.spec/sub-entity-rec-2-test,
+;;                             :required         true}]}
+;;              {:id         :modeling-framework.spec/sub-entity-rec-test,
+;;               :attributes [{:id               :modeling-framework.spec/sub-entity-1-id,
+;;                             :label            "Sub Entity 1 Id",
+;;                             :persistence-type :modeling-framework.spec/string,
+;;                             :required         true}]}
+;;              {:id         :modeling-framework.spec/sub-entity-rec-2-test,
+;;               :attributes [{:id               :modeling-framework.spec/sub-entity-2-id,
+;;                             :label            "Sub Entity 2 Id",
+;;                             :persistence-type :modeling-framework.spec/string,
+;;                             :required         true}]}]})
+;;
+;;(deftest test-model-required-specs-declaration
+;;  (let [result ()]))
 
 (def online-shop-model
   {:id ::data-model
@@ -547,7 +611,8 @@
                :spec             ::simple-string
                :label            "First-name"
                :description      "The first name of the client"
-               :persistence-type ::m/string}
+               :persistence-type ::m/string
+               :required         true}
               {:id               ::last-name
                :spec             ::vector-of-strings
                :label            "Last-name"
@@ -574,7 +639,8 @@
                :description      "The reference of the client's identification"
                :cardinality      ::m/single
                :persistence-type ::m/string
-               :identifies       true}
+               :identifies       true
+               :required         true}
               {:id               ::address
                :spec             ::ref
                :label            "Address"
@@ -677,30 +743,50 @@
                :description      "The longitude of the location in the map in decimal degrees"
                :required         true}]}]})
 
-;(deftest evaluate-spec
-;  (testing
-;    "The client model must pass the spec"
-;    (let [test-entity {::first-name     "Esteban"
-;                       ::last-name      ["León" "Soto"]
-;                       ::identification "24308978902341"
-;                       ::telephones     [{::telephone-number 123784902318794321
-;                                          ::telephone-type   :home}]}
-;          ;::email          [{::email-address "esteban@email.com"
-;          ;                   ::email-type    :home}]
-;          ;::identification "1-456A-5456456"
-;          ;::address        [{::address-descriptor :home
-;          ;                   ::address-lines      ["De la farmacia La Paulina"
-;          ;                                         "(que ya no existe)450 varas"
-;          ;                                         "al este"]
-;          ;                   ::city               "Paso de la Vaca"
-;          ;                   ::canton             "San José"
-;          ;                   ::state-or-province  "San José"
-;          ;                   ::postal-code        "10101"
-;          ;                   ::country            "Costa Rica"
-;          ;                   ::coordinates        {::latitude  9.945511223885042
-;          ;                                         ::longitude -84.12367698123887}}]
-;          ;::category       :compita}
-;          not-passing-test-entity {::first-name "John"}]
-;      (m/mandatory-attributes-entity-spec (m/fetch-entity-model online-shop-model ::client))
-;      (is (s/valid? ::client-with-all-required-attributes test-entity))
-;      (is (not (s/valid? ::client-with-all-required-attributes not-passing-test-entity))))))
+(deftest evaluate-spec
+  (testing
+    "The client model must pass the spec"
+    (let [test-entity {::first-name     "Esteban"
+                       ::last-name      ["León" "Soto"]
+                       ::telephones     [{::telephone-number 123784902318794321
+                                          ::telephone-type   :home}]
+                       ::email          [{::email-address "esteban@email.com"
+                                          ::email-type    :home}]
+                       ::identification "1-456A-5456456"
+                       ::address        [{::address-descriptor :home
+                                          ::address-lines      ["De la farmacia La Paulina"
+                                                                "(que ya no existe)450 varas"
+                                                                "al este"]
+                                          ::city               "Paso de la Vaca"
+                                          ::canton             "San José"
+                                          ::state-or-province  "San José"
+                                          ::postal-code        "10101"
+                                          ::country            "Costa Rica"
+                                          ::coordinates        {::latitude  9.945511223885042
+                                                                ::longitude -84.12367698123887}}]
+                       ::category       :compita}
+          missing-last-name {::first-name "John"}
+          missing-telephone-type {::first-name     "Esteban"
+                                  ::last-name      ["León" "Soto"]
+                                  ::telephones     [{::telephone-number 123784902318794321}]
+
+                                  ::email          [{::email-address "esteban@email.com"
+                                                     ::email-type    :home}]
+                                  ::identification "1-456A-5456456"
+                                  ::address        [{::address-descriptor :home
+                                                     ::address-lines      ["De la farmacia La Paulina"
+                                                                           "(que ya no existe)450 varas"
+                                                                           "al este"]
+                                                     ::city               "Paso de la Vaca"
+                                                     ::canton             "San José"
+                                                     ::state-or-province  "San José"
+                                                     ::postal-code        "10101"
+                                                     ::country            "Costa Rica"
+                                                     ::coordinates        {::latitude  9.945511223885042
+                                                                           ::longitude -84.12367698123887}}]
+                                  ::category       :compita}]
+
+      (m/register-attributes-required-specs online-shop-model)
+      (is (s/valid? ::client-with-all-required-attributes test-entity))
+      (is (not (s/valid? ::client-with-all-required-attributes missing-last-name)))
+      (is (not (s/valid? ::client-with-all-required-attributes missing-telephone-type))))))

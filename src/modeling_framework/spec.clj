@@ -109,10 +109,10 @@
     (str (namespace model-id))
     (str (name model-id) suffix)))
 
-(defn- sub-entities [entity-model]
+(defn sub-entities [entity-model]
   (->> entity-model
        (:attributes)
-       (map #(vector (:id %) (:sub-entity %)))
+       (map #(vector (:id %) (:sub-entity %) (or (:cardinality %) ::single)))
        (filter #(not (nil? (second %))))
        (vec)))
 
@@ -161,7 +161,7 @@
   (decorate-keyword entity-id nil (str "-has-" (name sub-entity-entry) "-with-all-required-attributes")))
 
 
-(defmacro required-attributes-model-spec
+(defmacro register-attributes-required-specs
   "Registers all mandatory attributes specs related to entities in this model"
   [model]
   (let [entities (->> model
@@ -200,19 +200,28 @@
       (->> entities
            (map (fn [entity-model]
                   (let [entity-param (gensym "entity-param-")
+                        entity-elem (gensym "entity-element-")
                         entity-id (:id entity-model)
                         sub-entities (->> entity-model
                                           (sub-entities))]
                     (->> sub-entities
-                         (map (fn [[sub-entity-entry sub-entity-id]]
+                         (map (fn [[sub-entity-entry sub-entity-id sub-entity-cardinality]]
                                 `(s/def ~(entity-has-sub-entity-entry-with-all-required-attributes-kw entity-id sub-entity-entry)
                                    (fn [~entity-param]
                                      (if (nil? (get ~entity-param ~sub-entity-entry))
                                        true
-                                       (s/valid?
-                                         ~(has-all-required-attributes-kw sub-entity-id)
-                                         (get ~entity-param ~sub-entity-entry)))))))))))
-           (filter #(not (empty? %)))))))
+                                       (if (= ~sub-entity-cardinality ::single)
+                                         (s/valid?
+                                           ~(has-all-required-attributes-kw sub-entity-id)
+                                           (get ~entity-param ~sub-entity-entry))
+                                         (every?
+                                           #(s/valid?
+                                              ~(has-all-required-attributes-kw sub-entity-id)
+                                              %)
+                                           (get ~entity-param ~sub-entity-entry))))))))))))
+
+           (filter #(not (empty? %)))
+           (apply concat)))))
 
 (defn has-all-types-correct-kw [entity-id]
   (decorate-keyword entity-id nil "-with-all-types-correct"))
@@ -311,14 +320,14 @@
                     (->> simple-attributes
                          (map (fn [attribute]
                                 `(s/def
-                                     ~(entity-has-attribute-with-type-correct-kw entity-id attribute)
-                                     (attribute-correct-type-predicate ~(attribute-model attribute entity-model))))))))))
+                                   ~(entity-has-attribute-with-type-correct-kw entity-id attribute)
+                                   (attribute-correct-type-predicate ~(attribute-model attribute entity-model))))))))))
       (->> entities
            (map (fn [entity-model]
                   (let [entity-id (:id entity-model)
                         sub-entities (sub-entities entity-model)]
                     (->> sub-entities
-                         (map (fn [[sub-entity-entry sub-entity-id]]
+                         (map (fn [[sub-entity-entry sub-entity-id sub-entity-cardinality]]
                                 (let [entity-param (gensym "entity-")]
                                   `(s/def
                                      ~(entity-has-sub-entity-entry-with-all-types-correct-kw entity-id sub-entity-entry)
@@ -417,7 +426,7 @@
                   (let [entity-id (:id entity-model)
                         sub-entities (sub-entities entity-model)]
                     (->> sub-entities
-                         (map (fn [[sub-entity-entry sub-entity-id]]
+                         (map (fn [[sub-entity-entry sub-entity-id sub-entity-cardinality]]
                                 (let [entity-param (gensym "entity-")]
                                   `(s/def
                                      ~(entity-has-sub-entity-entry-with-attributes-valid-kw entity-id sub-entity-entry)
@@ -480,5 +489,6 @@
   (let [model-value (eval model)
         entity-var (gensym "entity-var-")]
     `(do
-       (required-attributes-model-spec ~model)
-       (register-attributes-valid-specs ~model))))
+       (register-attributes-required-specs ~model)
+       (register-attributes-valid-specs ~model)
+       (register-correct-types-specs ~model))))
