@@ -4,10 +4,10 @@
             [clojure.spec.alpha :as s]))
 
 (s/def ::simple-string string?)
-;(s/def ::category #(contains?
-;                     #{:normal
-;                       :whole-seller
-;                       :compita} %))
+(s/def ::category-spec #(contains?
+                          #{:normal
+                            :whole-seller
+                            :compita} %))
 (s/def ::telephone-number-spec pos-int?)
 (def contact-channel-types
   #{:home
@@ -68,13 +68,13 @@
                :description      "A reference to multiple addresses in an entity"
                :cardinality      ::m/multiple
                :persistence-type ::m/ref
-               :sub-entity       ::address}]}
-        ;{:id               ::category
-        ; :spec             ::category
-        ; :label            "Category"
-        ; :description      "The category the client belongs to"
-        ; :cardinality      ::m/multiple
-        ; :persistence-type ::m/keyword}]}
+               :sub-entity       ::address}
+              {:id               ::category
+               :spec             ::category-spec
+               :label            "Category"
+               :description      "The category the client belongs to"
+               :cardinality      ::m/multiple
+               :persistence-type ::m/keyword}]}
         {:id ::telephone
          :attributes
              [{:id               ::telephone-number
@@ -209,7 +209,7 @@
 
       (m/load-specs-for-model online-shop-model)
       (is (s/valid? ::client-with-all-required-attributes good-client))
-      (is (not (s/valid? ::client-with-all-required-attributes missing-last-name)))
-      (is (not (s/valid? ::client-with-all-required-attributes missing-telephone-type)))
       (is (s/valid? ::client-with-all-types-correct good-client))
-      (is (s/valid? ::client-with-attributes-valid good-client)))))
+      (is (s/valid? ::client-with-attributes-valid good-client))
+      (is (not (s/valid? ::client-with-all-required-attributes missing-last-name)))
+      (is (not (s/valid? ::client-with-all-required-attributes missing-telephone-type))))))
