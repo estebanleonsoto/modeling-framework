@@ -85,14 +85,14 @@
          (doall))))
 
 (def test-entity-1
-  {:id :test-entity-1
+  {:id ::test-entity-1
    :attributes
-       [{:id               :att1
+       [{:id               ::att1
          :spec             :some-spec1
          :label            "A nice label"
          :description      "This is attribute 1 of test-entity-1"
          :persistence-type ::m/string}
-        {:id               :att2
+        {:id               ::att2
          :spec             :some-spec2
          :label            "A nice label 2"
          :description      "This is attribute 2 of test-entity-1"
@@ -103,60 +103,61 @@
   (testing
     "All attributes in the entity must be mapped"
     (let [input test-entity-1
-          expected {:test-entity-1
-                    [{:db/ident       :att1
+          expected {::test-entity-1
+                    [{:db/ident       ::att1
                       :db/valueType   :db.type/string
                       :db/cardinality :db.cardinality/one
                       :db/doc         "This is attribute 1 of test-entity-1"}
-                     {:db/ident       :att2
+                     {:db/ident       ::att2
                       :db/valueType   :db.type/float
                       :db/cardinality :db.cardinality/many
                       :db/doc         "This is attribute 2 of test-entity-1"}]}]
       (is (= expected (entity-schema input))))))
 
 (def test-model
-  {:id :model-1 :entities
+  {:id ::model-1
+   :entities
        [test-entity-1]})
 
 (deftest test-model-schema
   (testing
     "All entities of a model must be mapped"
     (let [input test-model
-          expected [{:test-entity-1
-                     [{:db/ident       :att1
+          expected [{::test-entity-1
+                     [{:db/ident       ::att1
                        :db/valueType   :db.type/string
                        :db/cardinality :db.cardinality/one
                        :db/doc         "This is attribute 1 of test-entity-1"}
-                      {:db/ident       :att2
+                      {:db/ident       ::att2
                        :db/valueType   :db.type/float
                        :db/cardinality :db.cardinality/many
                        :db/doc         "This is attribute 2 of test-entity-1"}]}]]
       (is (= expected (schema input))))))
 
 (def test-model-2
-  {:id :model-1
+  {:id ::model-1
    :entities
        [test-entity-1
-        (assoc test-entity-1 :id :test-entity-2)]})
+        (assoc test-entity-1 :id ::test-entity-2)]})
 
 
 (deftest test-conformity-schema
   (testing
     "Entities are converted to conformity transactions in a map"
-    (let [expected {:test-entity-1 {:txes [#:db{:ident       :att1,
-                                                :valueType   :db.type/string,
-                                                :cardinality :db.cardinality/one,
-                                                :doc         "This is attribute 1 of test-entity-1"}
-                                           #:db{:ident       :att2,
-                                                :valueType   :db.type/float,
-                                                :cardinality :db.cardinality/many,
-                                                :doc         "This is attribute 2 of test-entity-1"}]},
-                    :test-entity-2 {:txes [#:db{:ident       :att1,
-                                                :valueType   :db.type/string,
-                                                :cardinality :db.cardinality/one,
-                                                :doc         "This is attribute 1 of test-entity-1"}
-                                           #:db{:ident       :att2,
-                                                :valueType   :db.type/float,
-                                                :cardinality :db.cardinality/many,
-                                                :doc         "This is attribute 2 of test-entity-1"}]}}]
+    (let [expected {::test-entity-1 {:txes [#:db{:ident       ::att1,
+                                                 :valueType   :db.type/string,
+                                                 :cardinality :db.cardinality/one,
+                                                 :doc         "This is attribute 1 of test-entity-1"}
+                                            #:db{:ident       ::att2,
+                                                 :valueType   :db.type/float,
+                                                 :cardinality :db.cardinality/many,
+                                                 :doc         "This is attribute 2 of test-entity-1"}]},
+                    ::test-entity-2 {:txes [#:db{:ident       ::att1,
+                                                 :valueType   :db.type/string,
+                                                 :cardinality :db.cardinality/one,
+                                                 :doc         "This is attribute 1 of test-entity-1"}
+                                            #:db{:ident       ::att2,
+                                                 :valueType   :db.type/float,
+                                                 :cardinality :db.cardinality/many,
+                                                 :doc         "This is attribute 2 of test-entity-1"}]}}]
       (is (= expected (conformity-transaction-data test-model-2))))))
