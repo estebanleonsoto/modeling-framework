@@ -609,28 +609,6 @@
     (is (s/valid? ::test-entity-with-attributes-valid good-entity))
     (is (not (s/valid? ::test-entity-with-attributes-valid test-attribute-not-collection-in-value)))))
 
-;(deftest test-valid-type-with-attributes-cardinality-multiple-spec
-;  (let [test-model {:id ::client
-;                    :attributes
-;                        [{:id               ::last-name
-;                          :spec             ::vector-of-strings
-;                          :label            "Last-name"
-;                          :cardinality      ::m/multiple
-;                          :description      "The last names of the client"
-;                          :persistence-type ::m/string
-;                          :required         true}]}
-;        test-client-good {::last-name ["Doe" "Windsor"]}
-;        test-client-bad {::last-name "Doe"}
-;        spec-for-fields (m/valid-value-types-spec test-model)]
-;    (testing
-;      "A vector with values must pass the the valid types specs"
-;      (do
-;        (clojure.pprint/pprint (s/explain-data spec-for-fields test-client-good))
-;        (is (s/valid? spec-for-fields test-client-good))))
-;    (testing
-;      "A single value (not in a collection) cannot pass the valid types specs"
-;      (is (not (s/valid? spec-for-fields test-client-bad))))))
-
 (deftest test-valid-value-type-predicate
   (let [predicate (m/attribute-correct-type-predicate {:id               ::first-name
                                                        :spec             ::simple-string
@@ -648,12 +626,6 @@
   (->> (s/registry)
        (keys)
        (some #(= % k))))
-
-(defn- spec-with-something-in-key [substring]
-  (->> (s/registry)
-       (keys)
-       (map str)
-       (filter #(clojure.string/includes? % substring))))
 
 (def basic-types-test-model
   {:id ::main-model

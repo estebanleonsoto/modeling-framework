@@ -104,11 +104,6 @@
        (map :id)
        (vec)))
 
-(defn spec-keyword [model-id suffix]
-  (keyword
-    (str (namespace model-id))
-    (str (name model-id) suffix)))
-
 (defn sub-entities [entity-model]
   (->> entity-model
        (:attributes)
@@ -125,34 +120,6 @@
            (str (or pre "")
                 (name k)
                 (or post ""))))
-
-;;Candidate to removal
-(defmacro register-spec!
-  "Registers a spec with the given spec key and the corresponding spec body
-  in the registry. This can be used to register specs whose name will be
-  calculated at runtime."
-  [spec-key body]
-  (let [spec-key-value (eval spec-key)]
-    `(s/def ~spec-key-value ~body)))
-
-;; Candidate to removal
-(defmacro entity-required-attributes-spec [entity]
-  (let [sub-entities-param (gensym "sub-entities-")
-        ;sub-entity-param (gensym "sub-entity-")
-        sub-entities (sub-entities (eval entity))
-        required-attributes-param (gensym "required-attributes-")
-        all-sub-entities-kw-param (gensym "sub-entities-kws-")
-        required-attributes-spec-name-param (gensym "required-atts-")]
-    `(let [~all-sub-entities-kw-param (has-sub-with-all-required-atts-keyword (:id ~entity) ::sub-ent)
-           ~required-attributes-param (required-attributes ~entity)]
-       (register-spec!
-         (spec-keyword (:id ~entity) required-attributes-spec-name-suffix)
-         (s/and
-           (s/keys :req (vector ~required-attributes-param))
-           ~(cons 's/and
-                  (for [sub-entity sub-entities]
-                    (first sub-entity))))))))
-
 
 (defn has-all-required-attributes-kw [entity-id]
   (decorate-keyword entity-id nil required-attributes-spec-name-suffix))
@@ -364,29 +331,6 @@
 (defn entity-has-attribute-valid-kw [entity-id attribute-id]
   (decorate-keyword entity-id nil (str "-has-" (name attribute-id) "-valid")))
 
-(defn collection-elements-valid [attribute-model entity]
-  (let [attribute-value (entity (:id attribute-model))
-        the-spec (attribute-model :spec)]
-    (or (nil? the-spec)
-        (and (coll? attribute-value)
-             (every?
-               #(s/valid? the-spec %)
-               attribute-value)))))
-
-(defn single-element-valid [attribute-model entity]
-  (let [attribute-spec (attribute-model :spec)]
-    (or (nil? attribute-spec)
-        (s/valid?
-          attribute-spec
-          (entity (:id attribute-model))))))
-
-(defn attribute-valid-predicate [attribute-model]
-  (fn [entity]
-    (or (not (contains? entity (:id attribute-model)))
-        (if (= (attribute-model :cardinality) ::multiple)
-          (collection-elements-valid attribute-model entity)
-          (single-element-valid attribute-model entity)))))
-
 (defmacro register-attributes-valid-specs
   "Registers all attributes valid specs"
   [model]
@@ -473,44 +417,6 @@
                                          (~sub-entity-entry ~entity-param)))))))))))
            (filter #(not (empty? %)))
            (apply concat)))))
-
-
-
-;; Candidate for deleting
-(defmacro model-required-attributes-spec
-  "Registers specs for all mandatory attribuets in the entities in the provided model"
-  [model]
-  (let [entity-param (gensym "entity-")]
-    `(for [~entity-param (:entities ~model)]
-       (entity-required-attributes-spec ~entity-param))))
-
-(defmacro correct-attribute-type-spec [attribute-model]
-  `(list 's/def
-         (spec-keyword (:id ~attribute-model) "-with-all-correct-types")
-         (attribute-correct-type-predicate ~attribute-model)))
-
-(defmacro join-specs [spec-ids]
-  `(conj ~spec-ids 's/and))
-
-(defmacro def-entity-correct-types-spec [entity-model attribute-types-spec]
-  `(list 's/def
-         (spec-keyword (:id ~entity-model) "-with-all-correct-types")
-         ~attribute-types-spec))
-
-
-;(defn valid-value-types-spec [entity-model]
-;  (let [attribute-type-specs (->> entity-model
-;                                  (:attributes)
-;                                  (map #(correct-attribute-type-spec %))
-;                                  (map eval)
-;                                  (join-specs))
-;        all-attributes-with-correct-type (def-entity-correct-types-spec entity-model attribute-type-specs)]
-;    (eval all-attributes-with-correct-type)))
-
-(defmacro def-entity-valid?-spec [entity-model attributes-valid?]
-  `(list 's/def
-         (spec-keyword (:id ~entity-model) "-all-attributes-valid?")
-         ~attributes-valid?))
 
 (defmacro load-specs-for-model [model]
   (let [model-value (eval model)
