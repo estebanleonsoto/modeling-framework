@@ -74,6 +74,6 @@
        (:entities)
        (map (fn [entity] [(:id entity)
                           {:txes
-                           (get (entity-schema entity) (:id entity))}]))
+                           [(get (entity-schema entity) (:id entity))]}]))
        (vec)
        (into {})))

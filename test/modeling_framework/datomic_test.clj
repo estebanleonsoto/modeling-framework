@@ -144,20 +144,20 @@
 (deftest test-conformity-schema
   (testing
     "Entities are converted to conformity transactions in a map"
-    (let [expected {::test-entity-1 {:txes [#:db{:ident       ::att1,
-                                                 :valueType   :db.type/string,
-                                                 :cardinality :db.cardinality/one,
-                                                 :doc         "This is attribute 1 of test-entity-1"}
-                                            #:db{:ident       ::att2,
-                                                 :valueType   :db.type/float,
-                                                 :cardinality :db.cardinality/many,
-                                                 :doc         "This is attribute 2 of test-entity-1"}]},
-                    ::test-entity-2 {:txes [#:db{:ident       ::att1,
-                                                 :valueType   :db.type/string,
-                                                 :cardinality :db.cardinality/one,
-                                                 :doc         "This is attribute 1 of test-entity-1"}
-                                            #:db{:ident       ::att2,
-                                                 :valueType   :db.type/float,
-                                                 :cardinality :db.cardinality/many,
-                                                 :doc         "This is attribute 2 of test-entity-1"}]}}]
+    (let [expected {::test-entity-1 {:txes [[#:db{:ident       ::att1,
+                                                  :valueType   :db.type/string,
+                                                  :cardinality :db.cardinality/one,
+                                                  :doc         "This is attribute 1 of test-entity-1"}
+                                             #:db{:ident       ::att2,
+                                                  :valueType   :db.type/float,
+                                                  :cardinality :db.cardinality/many,
+                                                  :doc         "This is attribute 2 of test-entity-1"}]]},
+                    ::test-entity-2 {:txes [[#:db{:ident       ::att1,
+                                                  :valueType   :db.type/string,
+                                                  :cardinality :db.cardinality/one,
+                                                  :doc         "This is attribute 1 of test-entity-1"}
+                                             #:db{:ident       ::att2,
+                                                  :valueType   :db.type/float,
+                                                  :cardinality :db.cardinality/many,
+                                                  :doc         "This is attribute 2 of test-entity-1"}]]}}]
       (is (= expected (conformity-transaction-data test-model-2))))))
