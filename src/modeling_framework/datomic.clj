@@ -49,8 +49,13 @@
    (->> entity-model
         (:attributes)
         (map attribute-schema)
+        (cons {:db/ident       ::m/entity-id
+               :db/valueType   :db.type/keyword
+               :db/cardinality :db.cardinality/one
+               :db/doc         "This attribute identifies the entity definition this belongs to, can be understood as the entity's type."})
         (doall)
         (vec))})
+
 
 (defn validate-model [model]
   "Performs a clojure spec validation of the model"

@@ -1,4 +1,4 @@
-(defproject estebanleonsoto/modeling-framework "0.00.003-alpha.1"
+(defproject estebanleonsoto/modeling-framework "0.00.004-alpha.1"
   :description "A tool for describing business (domain) models and generating functionality out of it"
   :url "https://github.com/estebanleonsoto/modeling-framework"
   :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"

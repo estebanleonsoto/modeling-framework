@@ -104,7 +104,11 @@
     "All attributes in the entity must be mapped"
     (let [input test-entity-1
           expected {::test-entity-1
-                    [{:db/ident       ::att1
+                    [{:db/ident       ::m/entity-id
+                      :db/valueType   :db.type/keyword
+                      :db/cardinality :db.cardinality/one
+                      :db/doc         "This attribute identifies the entity definition this belongs to, can be understood as the entity's type."}
+                     {:db/ident       ::att1
                       :db/valueType   :db.type/string
                       :db/cardinality :db.cardinality/one
                       :db/doc         "This is attribute 1 of test-entity-1"}
@@ -112,6 +116,7 @@
                       :db/valueType   :db.type/float
                       :db/cardinality :db.cardinality/many
                       :db/doc         "This is attribute 2 of test-entity-1"}]}]
+
       (is (= expected (entity-schema input))))))
 
 (def test-model
@@ -124,7 +129,11 @@
     "All entities of a model must be mapped"
     (let [input test-model
           expected [{::test-entity-1
-                     [{:db/ident       ::att1
+                     [{:db/ident       ::m/entity-id
+                       :db/valueType   :db.type/keyword
+                       :db/cardinality :db.cardinality/one
+                       :db/doc         "This attribute identifies the entity definition this belongs to, can be understood as the entity's type."}
+                      {:db/ident       ::att1
                        :db/valueType   :db.type/string
                        :db/cardinality :db.cardinality/one
                        :db/doc         "This is attribute 1 of test-entity-1"}
@@ -144,7 +153,11 @@
 (deftest test-conformity-schema
   (testing
     "Entities are converted to conformity transactions in a map"
-    (let [expected {::test-entity-1 {:txes [[#:db{:ident       ::att1,
+    (let [expected {::test-entity-1 {:txes [[#:db{:ident       ::m/entity-id
+                                                  :valueType   :db.type/keyword
+                                                  :cardinality :db.cardinality/one
+                                                  :doc         "This attribute identifies the entity definition this belongs to, can be understood as the entity's type."}
+                                             #:db{:ident       ::att1,
                                                   :valueType   :db.type/string,
                                                   :cardinality :db.cardinality/one,
                                                   :doc         "This is attribute 1 of test-entity-1"}
@@ -152,7 +165,11 @@
                                                   :valueType   :db.type/float,
                                                   :cardinality :db.cardinality/many,
                                                   :doc         "This is attribute 2 of test-entity-1"}]]},
-                    ::test-entity-2 {:txes [[#:db{:ident       ::att1,
+                    ::test-entity-2 {:txes [[#:db{:ident       ::m/entity-id
+                                                  :valueType   :db.type/keyword
+                                                  :cardinality :db.cardinality/one
+                                                  :doc         "This attribute identifies the entity definition this belongs to, can be understood as the entity's type."}
+                                             #:db{:ident       ::att1,
                                                   :valueType   :db.type/string,
                                                   :cardinality :db.cardinality/one,
                                                   :doc         "This is attribute 1 of test-entity-1"}
