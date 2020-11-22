@@ -9,7 +9,7 @@
      :persistence-type ::m/long
      :cardinality      ::m/single
      :label            "Some nice label"}
-    {:db/ident       :test-attribute-id
+    {:db/ident       :modeling-framework.datomic-test.e/test-attribute-id
      :db/valueType   :db.type/long
      :db/cardinality :db.cardinality/one
      :db/doc         "Some nice label"}]
@@ -20,7 +20,7 @@
      :cardinality      ::m/multiple
      :label            "Some nice label"
      :identifies       true}
-    {:db/ident       :test-attribute-id3
+    {:db/ident       :modeling-framework.datomic-test.e/test-attribute-id3
      :db/valueType   :db.type/string
      :db/cardinality :db.cardinality/many
      :db/doc         "Some nice label"
@@ -33,7 +33,7 @@
      :label            "Some nice label"
      :identifies       true
      :sub-entity       true}
-    {:db/ident       :test-attribute-id4
+    {:db/ident       :modeling-framework.datomic-test.e/test-attribute-id4
      :db/valueType   :db.type/string
      :db/cardinality :db.cardinality/many
      :db/doc         "Some nice label"
@@ -45,7 +45,7 @@
      :cardinality      ::m/multiple
      :label            "Some nice label"
      :sub-entity       true}
-    {:db/ident       :test-attribute-id5
+    {:db/ident       :modeling-framework.datomic-test.e/test-attribute-id5
      :db/valueType   :db.type/ref
      :db/cardinality :db.cardinality/many
      :db/doc         "Some nice label"
@@ -80,7 +80,7 @@
     (->> attributes-test-cases
          (into all-types-mapping-test-cases)
          (map (fn [[input expected]]
-                (let [result (attribute-schema input)]
+                (let [result (attribute-schema ::e input)]
                   (is (= expected result)))))
          (doall))))
 
@@ -104,15 +104,11 @@
     "All attributes in the entity must be mapped"
     (let [input test-entity-1
           expected {::test-entity-1
-                    [{:db/ident       ::m/entity-id
-                      :db/valueType   :db.type/keyword
-                      :db/cardinality :db.cardinality/one
-                      :db/doc         "This attribute identifies the entity definition this belongs to, can be understood as the entity's type."}
-                     {:db/ident       ::att1
+                    [{:db/ident       :modeling-framework.datomic-test.test-entity-1/att1
                       :db/valueType   :db.type/string
                       :db/cardinality :db.cardinality/one
                       :db/doc         "This is attribute 1 of test-entity-1"}
-                     {:db/ident       ::att2
+                     {:db/ident       :modeling-framework.datomic-test.test-entity-1/att2
                       :db/valueType   :db.type/float
                       :db/cardinality :db.cardinality/many
                       :db/doc         "This is attribute 2 of test-entity-1"}]}]
@@ -129,15 +125,11 @@
     "All entities of a model must be mapped"
     (let [input test-model
           expected [{::test-entity-1
-                     [{:db/ident       ::m/entity-id
-                       :db/valueType   :db.type/keyword
-                       :db/cardinality :db.cardinality/one
-                       :db/doc         "This attribute identifies the entity definition this belongs to, can be understood as the entity's type."}
-                      {:db/ident       ::att1
+                     [{:db/ident       :modeling-framework.datomic-test.test-entity-1/att1
                        :db/valueType   :db.type/string
                        :db/cardinality :db.cardinality/one
                        :db/doc         "This is attribute 1 of test-entity-1"}
-                      {:db/ident       ::att2
+                      {:db/ident       :modeling-framework.datomic-test.test-entity-1/att2
                        :db/valueType   :db.type/float
                        :db/cardinality :db.cardinality/many
                        :db/doc         "This is attribute 2 of test-entity-1"}]}]]
@@ -153,27 +145,19 @@
 (deftest test-conformity-schema
   (testing
     "Entities are converted to conformity transactions in a map"
-    (let [expected {::test-entity-1 {:txes [[#:db{:ident       ::m/entity-id
-                                                  :valueType   :db.type/keyword
-                                                  :cardinality :db.cardinality/one
-                                                  :doc         "This attribute identifies the entity definition this belongs to, can be understood as the entity's type."}
-                                             #:db{:ident       ::att1,
+    (let [expected {::test-entity-1 {:txes [[#:db{:ident       :modeling-framework.datomic-test.test-entity-1/att1,
                                                   :valueType   :db.type/string,
                                                   :cardinality :db.cardinality/one,
                                                   :doc         "This is attribute 1 of test-entity-1"}
-                                             #:db{:ident       ::att2,
+                                             #:db{:ident       :modeling-framework.datomic-test.test-entity-1/att2,
                                                   :valueType   :db.type/float,
                                                   :cardinality :db.cardinality/many,
                                                   :doc         "This is attribute 2 of test-entity-1"}]]},
-                    ::test-entity-2 {:txes [[#:db{:ident       ::m/entity-id
-                                                  :valueType   :db.type/keyword
-                                                  :cardinality :db.cardinality/one
-                                                  :doc         "This attribute identifies the entity definition this belongs to, can be understood as the entity's type."}
-                                             #:db{:ident       ::att1,
+                    ::test-entity-2 {:txes [[#:db{:ident       :modeling-framework.datomic-test.test-entity-2/att1,
                                                   :valueType   :db.type/string,
                                                   :cardinality :db.cardinality/one,
                                                   :doc         "This is attribute 1 of test-entity-1"}
-                                             #:db{:ident       ::att2,
+                                             #:db{:ident       :modeling-framework.datomic-test.test-entity-2/att2,
                                                   :valueType   :db.type/float,
                                                   :cardinality :db.cardinality/many,
                                                   :doc         "This is attribute 2 of test-entity-1"}]]}}]

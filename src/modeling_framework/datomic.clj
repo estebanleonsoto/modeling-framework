@@ -35,8 +35,13 @@
     (assoc schema :db/isComponent true)
     schema))
 
-(defn attribute-schema [{:keys [id cardinality persistence-type description label identifies sub-entity]}]
-  (-> {:db/ident       id
+(defn attribute-schema [entity-id {:keys [id cardinality persistence-type description label identifies sub-entity]}]
+  (-> {:db/ident       (keyword (str (if (namespace id)
+                                       (str (namespace id) ".")
+                                       (when (namespace entity-id)
+                                         (str (namespace entity-id) ".")))
+                                     (name entity-id))
+                                (name id))
        :db/valueType   (datomic-types persistence-type)
        :db/cardinality (or (datomic-cardinality cardinality) :db.cardinality/one)
        :db/doc         (or description label)}
@@ -48,11 +53,7 @@
   {(entity-model :id)
    (->> entity-model
         (:attributes)
-        (map attribute-schema)
-        (cons {:db/ident       ::m/entity-id
-               :db/valueType   :db.type/keyword
-               :db/cardinality :db.cardinality/one
-               :db/doc         "This attribute identifies the entity definition this belongs to, can be understood as the entity's type."})
+        (map #(attribute-schema (entity-model :id) %))
         (doall)
         (vec))})
 
